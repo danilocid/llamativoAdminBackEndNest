@@ -14,8 +14,6 @@ export class Notification {
   title: string;
   @Column({ type: 'varchar', length: 255 })
   description: string;
-  @Column({ type: 'varchar', length: 255 })
-  url: string;
   @Column({ default: false })
   readed: boolean;
   @Column({ default: () => 'null', nullable: true })

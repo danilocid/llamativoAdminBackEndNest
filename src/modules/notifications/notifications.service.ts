@@ -16,7 +16,6 @@ export class NotificationsService {
         id: notification.id,
         title: notification.title,
         description: notification.description,
-        url: notification.url,
         readed: notification.readed,
       });
     });
@@ -33,6 +32,28 @@ export class NotificationsService {
     return {
       serverResponseCode: 200,
       serverResponseMessage: 'Notificación creada.',
+      data: notification,
+    };
+  }
+
+  async markAsReaded(id: number) {
+    const notification = await this.notificationRepository.findOne({
+      where: { id },
+    });
+    if (!notification) {
+      return {
+        serverResponseCode: 404,
+        serverResponseMessage: 'Notificación no encontrada.',
+        data: null,
+      };
+    }
+    notification.readed = true;
+    notification.readedAt = new Date();
+    await this.notificationRepository.save(notification);
+
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: 'Notificación marcada como leída.',
       data: notification,
     };
   }

@@ -11,9 +11,4 @@ export class CreateNotificationDto {
   @IsString()
   @IsNotEmpty()
   description: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  url: string;
 }
