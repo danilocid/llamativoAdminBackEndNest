@@ -5,12 +5,14 @@ import { ConfigModule } from '@nestjs/config';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { APP_FILTER } from '@nestjs/core/constants';
 import { HttpExceptionFilter } from './common/exceptions/http-exception.filter';
+import { IssuesModule } from './modules/issues/issues.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
     AuthModule,
+    ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule,
+    IssuesModule,
     NotificationsModule,
   ],
   controllers: [],

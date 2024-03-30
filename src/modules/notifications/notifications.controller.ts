@@ -5,7 +5,7 @@ import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { CreateNotificationDto } from './dto/notification.dto';
 
 @Controller('notifications')
-@ApiTags('notifications')
+@ApiTags('Notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
   // get all notifications
