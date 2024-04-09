@@ -12,12 +12,12 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
-  app.enableCors({
+  /*  app.enableCors({
     origin: ['http://localhost:4200', 'https://localhost:4200'],
     credentials: true,
-  });
+  }); */
   const config = new DocumentBuilder()
-    .setTitle('FSA')
+    .setTitle('Llamativo API')
     .setVersion('1.0')
     .addBearerAuth(
       {
@@ -30,7 +30,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
 
   SwaggerModule.setup('api-docs', app, document);
-  await app.listen(3000);
+  await app.listen(process.env.PORT || 3000);
   console.log(`Application is running on port: 3000`);
   console.log(`Swagger is running on: http://localhost:3000/api-docs`);
 }
