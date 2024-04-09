@@ -12,10 +12,14 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
-  /*  app.enableCors({
-    origin: ['http://localhost:4200', 'https://localhost:4200'],
+  app.enableCors({
+    origin: [
+      'http://localhost:4200',
+      'https://localhost:4200',
+      'https://llamativo-admin.web.app',
+    ],
     credentials: true,
-  }); */
+  });
   const config = new DocumentBuilder()
     .setTitle('Llamativo API')
     .setVersion('1.0')
