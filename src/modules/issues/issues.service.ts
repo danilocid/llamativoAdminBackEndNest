@@ -257,6 +257,8 @@ export class IssuesService {
     issueExists.issueStatus = issueStatus;
     issue.issueStatus = issueStatus;
 
+    delete issueExists.updatedAt;
+
     issue = await this.issueRepository.update(issue.id, issueExists);
 
     return {
