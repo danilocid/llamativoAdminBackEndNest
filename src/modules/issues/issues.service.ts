@@ -211,7 +211,7 @@ export class IssuesService {
         data: null,
       };
     }
-
+    issueExists.issue = issue.issue;
     //check if issue type exists
     const issueType = await this.issueTypeRepository.findOne({
       where: { id: issue.type_id },
@@ -224,7 +224,7 @@ export class IssuesService {
         data: null,
       };
     }
-
+    issueExists.issueType = issueType;
     issue.issueType = issueType;
 
     //check if issue section exists
@@ -239,7 +239,7 @@ export class IssuesService {
         data: null,
       };
     }
-
+    issueExists.issueSection = issueSection;
     issue.issueSection = issueSection;
 
     // check if issue status exists
@@ -254,10 +254,10 @@ export class IssuesService {
         data: null,
       };
     }
-
+    issueExists.issueStatus = issueStatus;
     issue.issueStatus = issueStatus;
 
-    issue = await this.issueRepository.save(issue);
+    issue = await this.issueRepository.update(issue.id, issueExists);
 
     return {
       serverResponseCode: 200,
