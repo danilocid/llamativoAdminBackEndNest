@@ -187,6 +187,8 @@ export class IssuesService {
 
     issue.issueStatus = status;
 
+    issue = await this.issueRepository.save(issue);
+
     return {
       serverResponseCode: 200,
       serverResponseMessage: 'Incidencia creada.',
