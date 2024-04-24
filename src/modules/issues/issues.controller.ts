@@ -9,13 +9,7 @@ import {
   Put,
 } from '@nestjs/common';
 import { IssuesService } from './issues.service';
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiParam,
-  ApiQuery,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiParam, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import {
   CreateIssueDto,
@@ -96,12 +90,6 @@ export class IssuesController {
   // get all issues
   @Get()
   @ApiBearerAuth('jwt')
-  @ApiQuery({
-    type: GetIssuesDto,
-    name: 'type',
-    required: false,
-    description: 'Get all issues or only pending issues',
-  })
   @UseGuards(JwtAuthGuard)
   async getIssues(@Query() query: GetIssuesDto) {
     return await this.issuesService.getIssues(query);

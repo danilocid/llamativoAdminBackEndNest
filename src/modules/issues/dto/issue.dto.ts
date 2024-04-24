@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateIssueSectionDto {
@@ -26,7 +26,7 @@ export class CreateIssueTypeDto {
 }
 
 export class GetIssuesDto {
-  @ApiPropertyOptional({
+  @ApiProperty({
     description:
       'Obtener todas las incidencias o solo las que no estan terminadas.',
   })
@@ -35,7 +35,32 @@ export class GetIssuesDto {
     enum: ['all', 'pending'],
     default: 'all',
   })
-  readonly type?: string;
+  type?: string;
+
+  @ApiProperty({
+    description: 'page',
+    example: 1,
+  })
+  @IsOptional()
+  readonly page?: number = 1;
+
+  @ApiProperty({
+    description: 'parametro de busqueda',
+  })
+  @IsOptional()
+  readonly param?: string;
+
+  @ApiProperty({
+    description: 'ordenar por',
+  })
+  @IsOptional()
+  readonly order?: string;
+
+  @ApiProperty({
+    description: 'ordenar de manera ascendente o descendente',
+  })
+  @IsOptional()
+  readonly sort?: 'ASC' | 'asc' | 'DESC' | 'desc';
 }
 
 export class CreateIssueDto {

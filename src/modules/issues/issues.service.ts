@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { IssueSection } from './entities/issue_section.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not } from 'typeorm';
+import { Repository, Not, Like } from 'typeorm';
 import { IssueType } from './entities/issuse_type.entity';
 import { CreateIssueTypeDto, GetIssuesDto } from './dto/issue.dto';
 import { IssueStatus } from './entities/issue_status.entity';
@@ -95,30 +95,86 @@ export class IssuesService {
 
   // get all issues
   async getIssues(query: GetIssuesDto) {
+    const skippedItems = (query.page - 1) * 10;
+    let count = 0;
+    let issues = [];
+    let where = [];
+    let order = {};
+    const columnt: string = query.order;
+    const sort = query.sort;
+    if (query.param != '' && query.param != undefined) {
+      query.type = 'all';
+      where = [
+        { issue: Like(`%${query.param}%`) },
+        {
+          issueType: {
+            issue_type: Like(`%${query.param}%`),
+          },
+        },
+        {
+          issueSection: {
+            name: Like(`%${query.param}%`),
+          },
+        },
+        {
+          issueStatus: {
+            name: Like(`%${query.param}%`),
+          },
+        },
+      ];
+    }
+    if (query.order != '' && query.order != undefined) {
+      // if query.order have a . then it is a relation, so we need to split it
+      const condition = columnt.includes('.');
+      if (condition) {
+        const [relation, column] = columnt.split('.');
+        order = {
+          [relation]: {
+            [column]: sort,
+          },
+        };
+      } else {
+        order = {
+          [columnt]: sort,
+        };
+      }
+    }
     if (query.type === 'pending') {
       //get status 1 issues
       const status = await this.issueStatusRepository.findOne({
         where: { id: 3 },
       });
-      const issues = await this.issueRepository.find({
-        where: { issueStatus: Not(status.id) },
+
+      [issues, count] = await this.issueRepository.findAndCount({
+        where: {
+          issueStatus: Not(status.id),
+        },
+        take: 10,
+        skip: skippedItems,
         relations: ['issueType', 'issueStatus', 'issueSection'],
+        order: order,
       });
 
       return {
         serverResponseCode: 200,
         serverResponseMessage: 'Incidencias pendientes obtenidas.',
         data: issues,
+        count,
       };
     } else {
-      const issues = await this.issueRepository.find({
+      [issues, count] = await this.issueRepository.findAndCount({
+        where: where,
+        take: 10,
+        skip: skippedItems,
         relations: ['issueType', 'issueStatus', 'issueSection'],
+        order: order,
       });
 
       return {
         serverResponseCode: 200,
         serverResponseMessage: 'Incidencias obtenidas.',
         data: issues,
+        count,
       };
     }
   }
