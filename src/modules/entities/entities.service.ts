@@ -26,6 +26,7 @@ export class EntitiesService {
 
     if (t.t !== undefined && t.t !== 'b') {
       where.push({ tipo: t.t });
+      where.push({ tipo: 'B' });
     }
     if (t.param != '' && t.param != undefined) {
       where.push(
