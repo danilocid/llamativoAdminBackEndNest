@@ -7,6 +7,7 @@ import { APP_FILTER } from '@nestjs/core/constants';
 import { HttpExceptionFilter } from './common/exceptions/http-exception.filter';
 import { IssuesModule } from './modules/issues/issues.module';
 import { CommonModule } from './modules/common/common.module';
+import { EntitiesModule } from './modules/entities/entities.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { CommonModule } from './modules/common/common.module';
     CommonModule,
     ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule,
+    EntitiesModule,
     IssuesModule,
     NotificationsModule,
   ],

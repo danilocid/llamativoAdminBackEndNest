@@ -34,7 +34,6 @@ export class NotificationsController {
     },
   })
   async createNotification(@Body() notification: CreateNotificationDto) {
-    console.log(notification);
     return await this.notificationsService.createNotification(notification);
   }
 
