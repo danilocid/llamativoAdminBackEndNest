@@ -26,5 +26,5 @@ export class PageDto {
     default: 'DESC',
   })
   @IsOptional()
-  sort?: 'ASC' | 'asc' | 'DESC' | 'desc';
+  sort?: 'ASC' | 'DESC';
 }

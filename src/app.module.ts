@@ -8,6 +8,7 @@ import { HttpExceptionFilter } from './common/exceptions/http-exception.filter';
 import { IssuesModule } from './modules/issues/issues.module';
 import { CommonModule } from './modules/common/common.module';
 import { EntitiesModule } from './modules/entities/entities.module';
+import { ProductsModule } from './modules/products/products.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { EntitiesModule } from './modules/entities/entities.module';
     EntitiesModule,
     IssuesModule,
     NotificationsModule,
+    ProductsModule,
   ],
   controllers: [],
   providers: [
