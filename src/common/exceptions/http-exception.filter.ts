@@ -20,7 +20,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let message: string;
     if (exception instanceof HttpException) {
       const exceptionResponse: any = exception.getResponse();
-      status = exceptionResponse.code || exceptionResponse.statusCode || 500;
+      status =
+        exceptionResponse.code ||
+        exceptionResponse.statusCode ||
+        exceptionResponse.status ||
+        500;
       message = exceptionResponse.message || 'Error interno del servidor';
     } else {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
@@ -29,7 +33,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
     if (Array.isArray(message)) {
       message = message[0];
     }
-
     response.status(status).json({
       serverResponseMessage: message,
       serverResponseCode: status,

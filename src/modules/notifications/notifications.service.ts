@@ -1,6 +1,7 @@
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from './entities/notification.entity';
+import { CreateNotificationDto } from './dto/notification.dto';
 export class NotificationsService {
   constructor(
     @InjectRepository(Notification)
@@ -26,7 +27,7 @@ export class NotificationsService {
     };
   }
 
-  async createNotification(notification) {
+  async createNotification(notification: CreateNotificationDto) {
     notification = await this.notificationRepository.save(notification);
 
     return {

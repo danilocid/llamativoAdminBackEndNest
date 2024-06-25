@@ -27,6 +27,13 @@ export class ProductsController {
     return await this.productsService.getAllProducts(t);
   }
 
+  // set product as inactive
+
+  @Get('inactive')
+  async setInactive() {
+    return await this.productsService.setInactive();
+  }
+
   //create a product
   @Post()
   @ApiBearerAuth('jwt')

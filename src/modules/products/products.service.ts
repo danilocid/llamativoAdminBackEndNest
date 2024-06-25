@@ -4,11 +4,15 @@ import { Repository, Brackets } from 'typeorm';
 import { GetProductsDto } from './dto/get.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { NotFoundException } from '@nestjs/common';
+import { Notification } from '../notifications/entities/notification.entity';
 
 export class ProductsService {
   constructor(
     @InjectRepository(Products)
     private productsRepository: Repository<Products>,
+    @InjectRepository(Notification)
+    private notificationRepository: Repository<Notification>,
   ) {}
   async getAllProducts(t: GetProductsDto) {
     const skippedItems = (t.page - 1) * 10;
@@ -74,11 +78,7 @@ export class ProductsService {
       where: { id: idp },
     });
     if (!product) {
-      return {
-        serverResponseCode: 404,
-        serverResponseMessage: 'Producto no encontrado.',
-        data: null,
-      };
+      throw new NotFoundException('Producto no encontrado.');
     }
     return {
       serverResponseCode: 200,
@@ -128,11 +128,7 @@ export class ProductsService {
       where: { id: t.id },
     });
     if (!product) {
-      return {
-        serverResponseCode: 404,
-        serverResponseMessage: 'Producto no encontrado.',
-        data: null,
-      };
+      throw new NotFoundException('Producto no encontrado.');
     }
     const productExists = await this.productsRepository.findOne({
       where: [{ cod_interno: t.cod_interno }, { cod_barras: t.cod_barras }],
@@ -150,6 +146,42 @@ export class ProductsService {
     return {
       serverResponseCode: 200,
       serverResponseMessage: 'Producto actualizado.',
+      data: null,
+    };
+  }
+
+  async setInactive() {
+    // get all products with stock 0 and active true
+    const products = await this.productsRepository.find({
+      where: { stock: 0, activo: true },
+    });
+    // if there are no products with stock 0 and active true, return an message
+    if (products.length === 0) {
+      return {
+        serverResponseCode: 200,
+        serverResponseMessage: 'No hay productos inactivos.',
+        data: null,
+      };
+    }
+    // set all products to inactive, set publicado to false and enlace_ml to null
+    products.forEach((product) => {
+      product.activo = false;
+      product.publicado = false;
+      product.enlace_ml = null;
+    });
+    await this.productsRepository.save(products);
+    // create a notification for each product set to inactive
+    products.forEach(async (product) => {
+      const notification = new Notification();
+      notification.title = 'Producto inactivo';
+      notification.description = `El producto ${product.descripcion} ha sido seteado como inactivo.`;
+      await this.notificationRepository.save(notification);
+    });
+
+    // return a message with the amount of products set to inactive
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: `${products.length} productos inactivos.`,
       data: null,
     };
   }
