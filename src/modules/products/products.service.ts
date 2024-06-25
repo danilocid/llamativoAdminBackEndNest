@@ -1,6 +1,6 @@
 import { InjectRepository } from '@nestjs/typeorm';
 import { Products } from './entities/products.entity';
-import { Repository, Brackets } from 'typeorm';
+import { Repository, Brackets, Not } from 'typeorm';
 import { GetProductsDto } from './dto/get.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -183,6 +183,43 @@ export class ProductsService {
       serverResponseCode: 200,
       serverResponseMessage: `${products.length} productos inactivos.`,
       data: null,
+    };
+  }
+
+  // get inventory resume
+  async getInventoryResume() {
+    let totalUnits = 0;
+    let totalCost = 0;
+    let totalSale = 0;
+    let totalProfit = 0;
+
+    // get all products with stock greater than 0
+    const products = await this.productsRepository.find({
+      where: { stock: Not(0) },
+    });
+
+    // calculate total units, total cost, total sale and total profit
+    products.forEach((product) => {
+      totalUnits += product.stock;
+      totalCost += product.stock * (product.costo_imp + product.costo_imp);
+      totalSale += product.stock * (product.venta_imp + product.venta_neto);
+      totalProfit +=
+        product.stock *
+        (product.venta_imp +
+          product.venta_neto -
+          product.costo_imp -
+          product.costo_imp);
+    });
+
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: 'Resumen de inventario obtenido.',
+      data: {
+        totalUnits,
+        totalCost,
+        totalSale,
+        totalProfit,
+      },
     };
   }
 }

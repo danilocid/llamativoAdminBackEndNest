@@ -34,6 +34,14 @@ export class ProductsController {
     return await this.productsService.setInactive();
   }
 
+  // get inventory resume
+
+  @Get('inventory')
+  @ApiBearerAuth('jwt')
+  @UseGuards(JwtAuthGuard)
+  async getInventoryResume() {
+    return await this.productsService.getInventoryResume();
+  }
   //create a product
   @Post()
   @ApiBearerAuth('jwt')
