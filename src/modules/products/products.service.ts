@@ -201,7 +201,7 @@ export class ProductsService {
     // calculate total units, total cost, total sale and total profit
     products.forEach((product) => {
       totalUnits += product.stock;
-      totalCost += product.stock * (product.costo_imp + product.costo_imp);
+      totalCost += product.stock * (product.costo_imp + product.costo_neto);
       totalSale += product.stock * (product.venta_imp + product.venta_neto);
       totalProfit +=
         product.stock *
