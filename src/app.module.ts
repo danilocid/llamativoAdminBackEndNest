@@ -9,6 +9,7 @@ import { IssuesModule } from './modules/issues/issues.module';
 import { CommonModule } from './modules/common/common.module';
 import { EntitiesModule } from './modules/entities/entities.module';
 import { ProductsModule } from './modules/products/products.module';
+import { ProductsMovementsModule } from './modules/products-movements/products-movements.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { ProductsModule } from './modules/products/products.module';
     IssuesModule,
     NotificationsModule,
     ProductsModule,
+    ProductsMovementsModule,
   ],
   controllers: [],
   providers: [
