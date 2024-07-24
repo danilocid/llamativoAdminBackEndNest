@@ -10,6 +10,7 @@ import { CommonModule } from './modules/common/common.module';
 import { EntitiesModule } from './modules/entities/entities.module';
 import { ProductsModule } from './modules/products/products.module';
 import { ProductsMovementsModule } from './modules/products-movements/products-movements.module';
+import { SalesModule } from './modules/sales/sales.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ProductsMovementsModule } from './modules/products-movements/products-m
     NotificationsModule,
     ProductsModule,
     ProductsMovementsModule,
+    SalesModule,
   ],
   controllers: [],
   providers: [
