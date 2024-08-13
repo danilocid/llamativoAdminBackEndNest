@@ -91,14 +91,13 @@ export class PurchasesService {
       if (!tipoDocumento) {
         console.error('Tipo de documento no encontrado' + purchase.tipoDTE);
       }
-      /* const purchaseExists = await this.purchaseRepository.findOne({
+      const purchaseExists = await this.purchaseRepository.findOne({
         where: { documento: purchase.folio, tipo_documento: tipoDocumento },
       });
       if (purchaseExists) {
-        console.log('La compra ya existe');
-        console.log('purchaseExists', purchaseExists);
+        console.error('La compra ya existe', purchaseExists);
         continue;
-      } */
+      }
       const newPurchase = new Purchases();
       //validate if the rutProveedor exists as a proveedor
       const entity = await this.entitiesRepository.findOne({
