@@ -6,7 +6,6 @@ import { Entities } from '../entities/entities/entities.entity';
 import { GetPurchasesDto } from './dto/get-purchases.dto';
 import axios from 'axios';
 import { PurchaseApiResponse } from './dto/purchases-api.interface';
-import { InternalServerErrorException } from '@nestjs/common';
 import { DocumentType } from '../common/entities/document_type.entity';
 import { UpdatePurchaseDto } from './dto/update-purchase.dto';
 export class PurchasesService {
@@ -76,11 +75,7 @@ export class PurchasesService {
         headers: { Authorization: process.env.SIMPLE_API_PASS },
       });
     } catch (error) {
-      return {
-        serverResponseCode: 400,
-        serverResponseMessage: 'Error fetching data from the API',
-        data: error,
-      };
+      console.error('Error fetching data from the API', error);
     }
 
     const purchasesFromApi: PurchaseApiResponse[] =
@@ -94,9 +89,7 @@ export class PurchasesService {
       });
 
       if (!tipoDocumento) {
-        throw new InternalServerErrorException(
-          'Tipo de documento no encontrado',
-        );
+        console.error('Tipo de documento no encontrado' + purchase.tipoDTE);
       }
       /* const purchaseExists = await this.purchaseRepository.findOne({
         where: { documento: purchase.folio, tipo_documento: tipoDocumento },
@@ -133,7 +126,7 @@ export class PurchasesService {
         try {
           await this.entitiesRepository.save(newEntity);
         } catch (error) {
-          throw new InternalServerErrorException('Error al crear la entidad');
+          console.error('Error al crear la entidad' + newEntity);
         }
         newPurchase.proveedor = newEntity;
       } else {
@@ -158,22 +151,13 @@ export class PurchasesService {
         await this.purchaseRepository.save(newPurchase);
         purchasesCount++;
       } catch (error) {
-        throw new InternalServerErrorException('Error al guardar la compra');
+        console.error('Error al guardar la compra', error);
       }
     }
     if (purchasesCount === 0) {
-      return {
-        serverResponseCode: 200,
-        serverResponseMessage: 'No new purchases',
-        data: purchasesFromApi,
-      };
+      console.error('No purchases created');
     } else {
-      return {
-        serverResponseCode: 200,
-        serverResponseMessage:
-          purchasesCount + ' Purchases created successfully',
-        data: purchasesFromApi,
-      };
+      console.error('Purchases created', purchasesCount);
     }
   }
 

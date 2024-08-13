@@ -36,7 +36,11 @@ export class PurchasesController {
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
   async createPurchaseFromApi(@Query() t: GetPurchasesDto) {
-    return await this.purchasesService.createPurchaseFromApi(t);
+    this.purchasesService.createPurchaseFromApi(t);
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: 'Purchases created successfully',
+    };
   }
 
   @Post('edit/:id')
