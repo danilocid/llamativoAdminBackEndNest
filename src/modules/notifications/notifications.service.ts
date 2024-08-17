@@ -1,5 +1,5 @@
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, LessThan } from 'typeorm';
 import { Notification } from './entities/notification.entity';
 import { CreateNotificationDto } from './dto/notification.dto';
 export class NotificationsService {
@@ -18,6 +18,7 @@ export class NotificationsService {
         title: notification.title,
         description: notification.description,
         readed: notification.readed,
+        createdAt: notification.createdAt,
       });
     });
     return {
@@ -37,6 +38,16 @@ export class NotificationsService {
     };
   }
 
+  async deleteReadedNotifications() {
+    // Delete all readed notifications, where readed is true and readedAt is 1 week old
+    const date = new Date();
+    date.setDate(date.getDate() - 7);
+    await this.notificationRepository.delete({
+      readed: true,
+      readedAt: LessThan(date),
+    });
+  }
+
   async markAsReaded(id: number) {
     const notification = await this.notificationRepository.findOne({
       where: { id },
@@ -48,10 +59,12 @@ export class NotificationsService {
         data: null,
       };
     }
-    notification.readed = true;
-    notification.readedAt = new Date();
-    await this.notificationRepository.save(notification);
-
+    if (notification.readed === false) {
+      notification.readed = true;
+      notification.readedAt = new Date();
+      await this.notificationRepository.save(notification);
+    }
+    this.deleteReadedNotifications();
     return {
       serverResponseCode: 200,
       serverResponseMessage: 'Notificación marcada como leída.',
