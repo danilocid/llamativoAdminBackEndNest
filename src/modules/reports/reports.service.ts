@@ -25,8 +25,8 @@ export class ReportsService {
     //the report is a result of the sum of the total amount of all sales, by document type
     //the report is grouped by document type
 
-    const initialDate = new Date(year, month - 1, 1, -4, 0, 0);
-    const finalDate = new Date(year, month, 0, 19, 59, 59);
+    const initialDate = new Date(year, month - 1, 1, 0, 0, 0);
+    const finalDate = new Date(year, month, 0, 39, 59, 59);
     console.log(initialDate);
     console.log(finalDate);
     const sales = await this.salesRepository.find({
