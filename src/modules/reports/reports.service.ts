@@ -26,7 +26,7 @@ export class ReportsService {
     //the report is grouped by document type
 
     const initialDate = new Date(year, month - 1, 1, 0, 0, 0);
-    const finalDate = new Date(year, month, 0, 39, 59, 59);
+    const finalDate = new Date(year, month, 0, 23, 59, 59);
     console.log(initialDate);
     console.log(finalDate);
     const sales = await this.salesRepository.find({
