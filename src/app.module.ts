@@ -12,6 +12,7 @@ import { ProductsModule } from './modules/products/products.module';
 import { ProductsMovementsModule } from './modules/products-movements/products-movements.module';
 import { SalesModule } from './modules/sales/sales.module';
 import { PurchasesModule } from './modules/purchases/purchases.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { PurchasesModule } from './modules/purchases/purchases.module';
     ProductsModule,
     ProductsMovementsModule,
     PurchasesModule,
+    ReportsModule,
     SalesModule,
   ],
   controllers: [],
