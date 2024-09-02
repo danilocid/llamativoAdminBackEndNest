@@ -27,7 +27,8 @@ export class ReportsService {
 
     const initialDate = new Date(year, month - 1, 1, -4, 0, 0);
     const finalDate = new Date(year, month, 0, 19, 59, 59);
-
+    console.log(initialDate);
+    console.log(finalDate);
     const sales = await this.salesRepository.find({
       where: {
         fecha: Between(initialDate, finalDate),
