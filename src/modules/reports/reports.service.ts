@@ -25,8 +25,9 @@ export class ReportsService {
     //the report is a result of the sum of the total amount of all sales, by document type
     //the report is grouped by document type
 
-    const initialDate = new Date(year, month - 1, 1);
-    const finalDate = new Date(year, month, 0);
+    const initialDate = new Date(year, month - 1, 1, -4, 0, 0);
+    const finalDate = new Date(year, month, 0, 19, 59, 59);
+
     const sales = await this.salesRepository.find({
       where: {
         fecha: Between(initialDate, finalDate),
