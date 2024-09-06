@@ -6,6 +6,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { NotFoundException } from '@nestjs/common';
 import { Notification } from '../notifications/entities/notification.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export class ProductsService {
   constructor(
@@ -13,6 +14,7 @@ export class ProductsService {
     private productsRepository: Repository<Products>,
     @InjectRepository(Notification)
     private notificationRepository: Repository<Notification>,
+    private notificationsService: NotificationsService,
   ) {}
   async getAllProducts(t: GetProductsDto) {
     const skippedItems = (t.page - 1) * 10;
@@ -175,9 +177,11 @@ export class ProductsService {
       const notification = new Notification();
       notification.title = 'Producto inactivo';
       notification.description = `El producto ${product.descripcion} ha sido seteado como inactivo.`;
+      notification.readed = true;
+      notification.readedAt = new Date();
       await this.notificationRepository.save(notification);
     });
-
+    this.notificationsService.deleteReadedNotifications();
     // return a message with the amount of products set to inactive
     return {
       serverResponseCode: 200,
