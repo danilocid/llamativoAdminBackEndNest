@@ -38,7 +38,7 @@ export class NotificationsService {
     };
   }
 
-  async deleteReadedNotifications() {
+  async deleteReadedNtoifications() {
     // Delete all readed notifications, where readed is true and readedAt is 1 week old
     const date = new Date();
     date.setDate(date.getDate() - 7);
@@ -64,7 +64,7 @@ export class NotificationsService {
       notification.readedAt = new Date();
       await this.notificationRepository.save(notification);
     }
-    this.deleteReadedNotifications();
+    this.deleteReadedNtoifications();
     return {
       serverResponseCode: 200,
       serverResponseMessage: 'Notificación marcada como leída.',

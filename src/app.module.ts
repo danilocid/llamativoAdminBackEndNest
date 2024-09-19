@@ -13,6 +13,7 @@ import { ProductsMovementsModule } from './modules/products-movements/products-m
 import { SalesModule } from './modules/sales/sales.module';
 import { PurchasesModule } from './modules/purchases/purchases.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ReportsModule } from './modules/reports/reports.module';
     ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule,
     EntitiesModule,
+    InventoryModule,
     IssuesModule,
     NotificationsModule,
     ProductsModule,

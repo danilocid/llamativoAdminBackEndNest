@@ -159,6 +159,7 @@ export class ProductsService {
     });
     // if there are no products with stock 0 and active true, return an message
     if (products.length === 0) {
+      console.warn('No hay productos inactivos.');
       return {
         serverResponseCode: 200,
         serverResponseMessage: 'No hay productos inactivos.',
@@ -181,8 +182,9 @@ export class ProductsService {
       notification.readedAt = new Date();
       await this.notificationRepository.save(notification);
     });
-    this.notificationsService.deleteReadedNotifications();
+    this.notificationsService.deleteReadedNtoifications();
     // return a message with the amount of products set to inactive
+    console.warn(`${products.length} productos inactivos.`);
     return {
       serverResponseCode: 200,
       serverResponseMessage: `${products.length} productos inactivos.`,
