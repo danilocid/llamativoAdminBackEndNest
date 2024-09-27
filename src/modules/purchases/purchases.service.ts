@@ -77,7 +77,14 @@ export class PurchasesService {
     } catch (error) {
       console.error('Error fetching data from the API', error);
     }
-
+    if (!responseData) {
+      console.error('No data fetched from the API');
+      return;
+    }
+    if (responseData.data.error) {
+      console.error('Error from the API', responseData.data.error);
+      return;
+    }
     const purchasesFromApi: PurchaseApiResponse[] =
       responseData.data.compras.detalleCompras;
 
