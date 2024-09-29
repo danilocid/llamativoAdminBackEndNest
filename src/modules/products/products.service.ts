@@ -154,6 +154,8 @@ export class ProductsService {
 
   async setInactive() {
     // get all products with stock 0 and active true
+    await this.notificationsService.deleteReadedNtoifications();
+    await this.createNotificationNoPublicado();
     const products = await this.productsRepository.find({
       where: { stock: 0, activo: true },
     });
@@ -182,12 +184,40 @@ export class ProductsService {
       notification.readedAt = new Date();
       await this.notificationRepository.save(notification);
     });
-    this.notificationsService.deleteReadedNtoifications();
     // return a message with the amount of products set to inactive
     console.warn(`${products.length} productos inactivos.`);
     return {
       serverResponseCode: 200,
       serverResponseMessage: `${products.length} productos inactivos.`,
+      data: null,
+    };
+  }
+
+  async createNotificationNoPublicado() {
+    // get all products with publicado false and stock greater than 0
+    // pick 1 product at random, create a notification to set it to publicado
+    const products = await this.productsRepository.find({
+      where: { publicado: false, stock: Not(0) },
+    });
+    if (products.length === 0) {
+      console.warn('No hay productos no publicados.');
+      return {
+        serverResponseCode: 200,
+        serverResponseMessage: 'No hay productos no publicados.',
+        data: null,
+      };
+    }
+    const product = products[Math.floor(Math.random() * products.length)];
+    const notification = new Notification();
+    notification.title = 'Producto no publicado';
+    notification.description = `El producto ${product.descripcion} (${product.id}) no ha sido publicado.`;
+    notification.readed = true;
+    notification.readedAt = new Date();
+    await this.notificationRepository.save(notification);
+    console.warn('Notificación creada. Producto no publicado. ID:', product.id);
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: 'Notificación creada.',
       data: null,
     };
   }
