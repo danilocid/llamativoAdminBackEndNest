@@ -5,7 +5,6 @@ import { ConfigModule } from '@nestjs/config';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { APP_FILTER } from '@nestjs/core/constants';
 import { HttpExceptionFilter } from './common/exceptions/http-exception.filter';
-import { IssuesModule } from './modules/issues/issues.module';
 import { CommonModule } from './modules/common/common.module';
 import { EntitiesModule } from './modules/entities/entities.module';
 import { ProductsModule } from './modules/products/products.module';
@@ -14,6 +13,7 @@ import { SalesModule } from './modules/sales/sales.module';
 import { PurchasesModule } from './modules/purchases/purchases.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { ReceptionsModule } from './modules/receptions/receptions.module';
 
 @Module({
   imports: [
@@ -23,11 +23,11 @@ import { InventoryModule } from './modules/inventory/inventory.module';
     DatabaseModule,
     EntitiesModule,
     InventoryModule,
-    IssuesModule,
     NotificationsModule,
     ProductsModule,
     ProductsMovementsModule,
     PurchasesModule,
+    ReceptionsModule,
     ReportsModule,
     SalesModule,
   ],
