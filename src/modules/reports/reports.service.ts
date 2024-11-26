@@ -17,8 +17,113 @@ export class ReportsService {
     @InjectRepository(ReportData)
     private reportDataRepository: Repository<ReportData>,
   ) {}
-
   async getMonthlySales(month: number, year: number) {
+    const currentMonthSales = await this.getMonthlySalesData(month, year);
+
+    //get the sales of the previous month
+    let previousMonth = month - 1;
+    let previousYear = year;
+    if (previousMonth == 1) {
+      previousMonth = 12;
+      previousYear = year - 1;
+    }
+
+    const previousMonthSales = await this.getMonthlySalesData(
+      previousMonth,
+      previousYear,
+    );
+
+    previousYear = year - 1;
+    const previousYearSales = await this.getMonthlySalesData(
+      month,
+      previousYear,
+    );
+
+    // get the unique document types from the current month, previous month, and previous year
+    const docTypes = [];
+    currentMonthSales.data.forEach((sale) => {
+      const docExist = docTypes.find((doc) => doc.id === sale.id);
+      if (!docExist) {
+        docTypes.push({
+          id: sale.id,
+          name: sale.name,
+        });
+      }
+    });
+
+    previousMonthSales.data.forEach((sale) => {
+      const docExist = docTypes.find((doc) => doc.id === sale.id);
+      if (!docExist) {
+        docTypes.push({
+          id: sale.id,
+          name: sale.name,
+        });
+      }
+    });
+
+    previousYearSales.data.forEach((sale) => {
+      const docExist = docTypes.find((doc) => doc.id === sale.id);
+      if (!docExist) {
+        docTypes.push({
+          id: sale.id,
+          name: sale.name,
+        });
+      }
+    });
+
+    // get the total amount of sales for each document type
+    const sales = [];
+    let totalCurrentMonth = 0;
+    let totalPreviousMonth = 0;
+    let totalPreviousYear = 0;
+    let countCurrentMonth = 0;
+    let countPreviousMonth = 0;
+    let countPreviousYear = 0;
+    docTypes.forEach((doc) => {
+      const currentMonthDoc = currentMonthSales.data.find(
+        (sale) => sale.id === doc.id,
+      );
+      const previousMonthDoc = previousMonthSales.data.find(
+        (sale) => sale.id === doc.id,
+      );
+      const previousYearDoc = previousYearSales.data.find(
+        (sale) => sale.id === doc.id,
+      );
+
+      sales.push({
+        id: doc.id,
+        name: doc.name,
+        currentMonth: currentMonthDoc ? currentMonthDoc.total : 0,
+        currentMonthCount: currentMonthDoc ? currentMonthDoc.count : 0,
+        previousMonth: previousMonthDoc ? previousMonthDoc.total : 0,
+        previousMonthCount: previousMonthDoc ? previousMonthDoc.count : 0,
+        previousYear: previousYearDoc ? previousYearDoc.total : 0,
+        previousYearCount: previousYearDoc ? previousYearDoc.count : 0,
+      });
+
+      totalCurrentMonth += currentMonthDoc ? currentMonthDoc.total : 0;
+      totalPreviousMonth += previousMonthDoc ? previousMonthDoc.total : 0;
+      totalPreviousYear += previousYearDoc ? previousYearDoc.total : 0;
+      countCurrentMonth += currentMonthDoc ? currentMonthDoc.count : 0;
+      countPreviousMonth += previousMonthDoc ? previousMonthDoc.count : 0;
+      countPreviousYear += previousYearDoc ? previousYearDoc.count : 0;
+    });
+
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: 'Ventas mensuales obtenidas.',
+      data: {
+        sales,
+        totalCurrentMonth,
+        totalPreviousMonth,
+        totalPreviousYear,
+        countCurrentMonth,
+        countPreviousMonth,
+        countPreviousYear,
+      },
+    };
+  }
+  async getMonthlySalesData(month: number, year: number) {
     // Get all sales from the given month and year
     // Return the total amount of sales
     // get a report of the sales for the given month and year
@@ -27,8 +132,6 @@ export class ReportsService {
 
     const initialDate = new Date(year, month - 1, 1, 0, 0, 0);
     const finalDate = new Date(year, month, 0, 23, 59, 59);
-    console.log(initialDate);
-    console.log(finalDate);
     const sales = await this.salesRepository.find({
       where: {
         fecha: Between(initialDate, finalDate),
