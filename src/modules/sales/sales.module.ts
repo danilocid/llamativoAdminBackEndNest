@@ -10,6 +10,8 @@ import { PaymentMethod } from '../common/entities/payment_method.entity';
 import { Products } from '../products/entities/products.entity';
 import { ProductMovementDetail } from '../products-movements/entities/product_movement_detail.entity';
 import { ProductMovementType } from '../products-movements/entities/product_movement_type.entity';
+import { SalesExtraCosts } from './entities/sales-extra-costs.entity';
+import { SalesExtraCostDetails } from './entities/sales-extra-cost-details.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -21,6 +23,8 @@ import { ProductMovementType } from '../products-movements/entities/product_move
       Products,
       ProductMovementDetail,
       ProductMovementType,
+      SalesExtraCosts,
+      SalesExtraCostDetails,
     ]),
   ],
   controllers: [SalesController],

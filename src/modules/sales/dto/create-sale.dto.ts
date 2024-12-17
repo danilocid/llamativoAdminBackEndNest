@@ -38,6 +38,21 @@ export class CreateSaleProductDto {
   })
   costo_imp: number;
 }
+
+export class CreateSaleExtraCostDto {
+  @ApiProperty({
+    description: 'id del costo extra',
+    example: 1,
+  })
+  id: number;
+
+  //valor del costo extra
+  @ApiProperty({
+    description: 'valor del costo extra',
+    example: 1000,
+  })
+  value: number;
+}
 export class CreateSaleDto {
   @ApiProperty({
     description: 'id del tipo de documento',
@@ -138,4 +153,11 @@ export class CreateSaleDto {
   })
   @IsArray()
   productos: CreateSaleProductDto[];
+
+  @ApiProperty({
+    description: 'costos extra de la venta',
+    type: [CreateSaleExtraCostDto],
+  })
+  @IsArray()
+  extraCosts: CreateSaleExtraCostDto[];
 }

@@ -11,6 +11,8 @@ import { PaymentMethod } from '../common/entities/payment_method.entity';
 import { Products } from '../products/entities/products.entity';
 import { ProductMovementDetail } from '../products-movements/entities/product_movement_detail.entity';
 import { ProductMovementType } from '../products-movements/entities/product_movement_type.entity';
+import { SalesExtraCosts } from './entities/sales-extra-costs.entity';
+import { SalesExtraCostDetails } from './entities/sales-extra-cost-details.entity';
 export class SalesService {
   constructor(
     @InjectRepository(Sales)
@@ -29,6 +31,10 @@ export class SalesService {
     private productMovementDetailRepository: Repository<ProductMovementDetail>,
     @InjectRepository(ProductMovementType)
     private productMovementTypeRepository: Repository<ProductMovementType>,
+    @InjectRepository(SalesExtraCosts)
+    private salesExtraCostsRepository: Repository<SalesExtraCosts>,
+    @InjectRepository(SalesExtraCostDetails)
+    private salesExtraCostsDetailsRepository: Repository<SalesExtraCostDetails>,
   ) {}
   async getAllSales(t: GetSalesDto) {
     const skippedItems = (t.page - 1) * 10;
@@ -83,12 +89,18 @@ export class SalesService {
       relations: ['articulo'],
     });
 
+    const extraCosts = await this.salesExtraCostsDetailsRepository.find({
+      where: { venta: sale },
+      relations: ['costo_extra'],
+    });
+
     return {
       serverResponseCode: 200,
       serverResponseMessage: 'Venta obtenida.',
       data: {
         sale: sale,
         details: details,
+        extraCosts: extraCosts,
       },
     };
   }
@@ -140,6 +152,23 @@ export class SalesService {
 
     sale.medio_pago = paymentMethod;
 
+    //validate each extra cost
+    //validate the extra cost exist
+    let extraCostsError = false;
+    for (const extraCost of t.extraCosts) {
+      const extraCostExist = await this.salesExtraCostsRepository.findOne({
+        where: { id: extraCost.id },
+      });
+
+      if (!extraCostExist) {
+        extraCostsError = true;
+      }
+    }
+
+    if (extraCostsError) {
+      throw new NotFoundException('Costo extra no encontrado.');
+    }
+
     //validate each product in the sale
     //validate the product exist and the stock of the product
     let productsError = false;
@@ -174,7 +203,18 @@ export class SalesService {
     sale.costo_imp = t.costo_imp;
 
     const saleSaved = await this.salesRepository.save(sale);
+    //save the extra costs
+    for (const extraCost of t.extraCosts) {
+      const extraCostEntity = await this.salesExtraCostsRepository.findOne({
+        where: { id: extraCost.id },
+      });
 
+      const saleExtraCost = new SalesExtraCostDetails();
+      saleExtraCost.venta = sale;
+      saleExtraCost.costo_extra = extraCostEntity;
+      saleExtraCost.monto = extraCost.value;
+      await this.salesExtraCostsDetailsRepository.save(saleExtraCost);
+    }
     const productMovementType =
       await this.productMovementTypeRepository.findOne({
         where: { tipo_movimiento: 'venta' },
@@ -207,5 +247,15 @@ export class SalesService {
     }
 
     return saleSaved;
+  }
+
+  async getExtraCosts() {
+    const extraCosts = await this.salesExtraCostsRepository.find();
+
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: 'Costos extra obtenidos.',
+      data: extraCosts,
+    };
   }
 }

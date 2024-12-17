@@ -24,7 +24,13 @@ export class SalesController {
     return await this.salesService.getAllSales(t);
   }
 
-  //create a sale
+  //get extra costs types
+  @Get('extra-costs')
+  @ApiBearerAuth('jwt')
+  @UseGuards(JwtAuthGuard)
+  async getExtraCosts() {
+    return await this.salesService.getExtraCosts();
+  }
 
   // get a sale by id
   @Get(':id')
