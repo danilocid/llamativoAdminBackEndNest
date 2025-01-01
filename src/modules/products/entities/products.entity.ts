@@ -54,4 +54,18 @@ export class Products {
 
   @Column({ type: 'varchar', length: 120, nullable: true, default: null })
   enlace_ml: string;
+  @Column({ type: 'varchar', length: 120, nullable: true, default: null })
+  id_ml: string;
+
+  @Column({ type: 'varchar', length: 120, nullable: true, default: null })
+  id_variante_ml: string;
+
+  @Column({ type: 'boolean', default: false })
+  publicado_ps: boolean;
+
+  @Column({ type: 'varchar', length: 120, nullable: true, default: null })
+  id_ps: string;
+
+  @Column({ type: 'varchar', length: 120, nullable: true, default: null })
+  enlace_ps: string;
 }

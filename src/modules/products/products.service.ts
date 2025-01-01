@@ -144,6 +144,14 @@ export class ProductsService {
     }
     // set updated_at to current date
     t.updatedAt = new Date();
+    // set to null the enlace_ml, id_ml, id_variante_ml, id_ps and enlace_ps if are empty strings
+    if (t.enlace_ml === '' || t.enlace_ml === undefined) t.enlace_ml = null;
+    if (t.id_ml === '' || t.id_ml === undefined) t.id_ml = null;
+    if (t.id_variante_ml === '' || t.id_variante_ml === undefined)
+      t.id_variante_ml = null;
+    if (t.enlace_ps === '' || t.enlace_ps === undefined) t.enlace_ps = null;
+    if (t.id_ps === '' || t.id_ps === undefined) t.id_ps = null;
+
     await this.productsRepository.update(t.id, t);
     return {
       serverResponseCode: 200,
@@ -173,6 +181,11 @@ export class ProductsService {
       product.activo = false;
       product.publicado = false;
       product.enlace_ml = null;
+      product.id_ml = null;
+      product.id_variante_ml = null;
+      product.publicado_ps = false;
+      product.id_ps = null;
+      product.enlace_ps = null;
     });
     await this.productsRepository.save(products);
     // create a notification for each product set to inactive
@@ -197,24 +210,64 @@ export class ProductsService {
     // get all products with publicado false and stock greater than 0
     // pick 1 product at random, create a notification to set it to publicado
     const products = await this.productsRepository.find({
-      where: { publicado: false, stock: Not(0) },
+      where: { stock: Not(0) },
     });
+
     if (products.length === 0) {
-      console.warn('No hay productos no publicados.');
+      console.warn('No hay productos con stock disponible.');
       return {
         serverResponseCode: 200,
-        serverResponseMessage: 'No hay productos no publicados.',
+        serverResponseMessage: 'No hay productos con stock disponible.',
         data: null,
       };
     }
-    const product = products[Math.floor(Math.random() * products.length)];
+
+    // Filtramos los productos con problemas y determinamos la primera propiedad faltante
+    const productsWithIssues = products
+      .map((product) => {
+        if (!product.publicado) return { product, missingField: 'publicado' };
+        if (!product.enlace_ml) return { product, missingField: 'enlace_ml' };
+        if (!product.id_ml) return { product, missingField: 'id_ml' };
+        if (!product.id_variante_ml)
+          return { product, missingField: 'id_variante_ml' };
+        if (!product.publicado_ps)
+          return { product, missingField: 'publicado_ps' };
+        if (!product.id_ps) return { product, missingField: 'id_ps' };
+        if (!product.enlace_ps) return { product, missingField: 'enlace_ps' };
+        return null;
+      })
+      .filter((item) => item !== null);
+
+    if (productsWithIssues.length === 0) {
+      console.warn('No hay productos con propiedades faltantes o no válidas.');
+      return {
+        serverResponseCode: 200,
+        serverResponseMessage:
+          'No hay productos con propiedades faltantes o no válidas.',
+        data: null,
+      };
+    }
+
+    // Seleccionamos un producto con problemas al azar
+    const { product, missingField } =
+      productsWithIssues[Math.floor(Math.random() * productsWithIssues.length)];
+
+    // Crear notificación con detalle de la propiedad faltante
     const notification = new Notification();
-    notification.title = 'Producto no publicado';
-    notification.description = `El producto ${product.descripcion} (${product.id}) no ha sido publicado.`;
+    notification.title = 'Producto con propiedad faltante';
+    notification.description = `El producto ${product.descripcion} (${product.id}) tiene la propiedad faltante o no válida: ${missingField}.`;
     notification.readed = true;
     notification.readedAt = new Date();
+
     await this.notificationRepository.save(notification);
-    console.warn('Notificación creada. Producto no publicado. ID:', product.id);
+
+    console.warn(
+      'Notificación creada. Producto con propiedad faltante. ID:',
+      product.id,
+      'Propiedad faltante:',
+      missingField,
+    );
+
     return {
       serverResponseCode: 200,
       serverResponseMessage: 'Notificación creada.',

@@ -70,5 +70,40 @@ export class CreateProductDto {
     example: 'https://www.mercadolibre.com',
   })
   @IsOptional()
-  readonly enlace_ml: string;
+  enlace_ml: string;
+
+  @ApiProperty({
+    description: 'Id de Mercado Libre',
+    example: '123456',
+  })
+  @IsOptional()
+  id_ml: string;
+
+  @ApiProperty({
+    description: 'Id de variante de Mercado Libre',
+    example: '123456',
+  })
+  @IsOptional()
+  id_variante_ml: string;
+
+  @ApiProperty({
+    description: 'Publicado en PrestaShop',
+    example: false,
+  })
+  @IsBoolean()
+  publicado_ps: boolean;
+
+  @ApiProperty({
+    description: 'Id de PrestaShop',
+    example: '123456',
+  })
+  @IsOptional()
+  id_ps: string;
+
+  @ApiProperty({
+    description: 'Enlace de PrestaShop',
+    example: 'https://www.prestashop.com',
+  })
+  @IsOptional()
+  enlace_ps: string;
 }
