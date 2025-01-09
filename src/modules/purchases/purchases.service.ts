@@ -148,9 +148,11 @@ export class PurchasesService {
       newPurchase.documento = purchase.folio;
       newPurchase.fecha_documento = purchase.fechaEmision;
       newPurchase.observaciones = purchase.estado;
-      newPurchase.monto_neto_documento = purchase.montoNeto;
+      newPurchase.monto_neto_documento =
+        purchase.montoNeto + purchase.montoExento;
       newPurchase.monto_imp_documento = purchase.montoIvaRecuperable;
-      newPurchase.costo_neto_documento = purchase.montoNeto;
+      newPurchase.costo_neto_documento =
+        purchase.montoNeto + purchase.montoExento;
       newPurchase.costo_imp_documento = purchase.montoIvaRecuperable;
 
       try {
