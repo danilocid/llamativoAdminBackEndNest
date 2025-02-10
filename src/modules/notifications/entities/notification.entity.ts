@@ -16,6 +16,8 @@ export class Notification {
   description: string;
   @Column({ default: false })
   readed: boolean;
+  @Column({ type: 'varchar', length: 255, nullable: true, default: 'null' })
+  url: string;
   @Column({ default: () => 'null', nullable: true })
   readedAt: Date;
   @CreateDateColumn({ name: 'createdAt', default: () => 'CURRENT_TIMESTAMP' })

@@ -256,8 +256,8 @@ export class ProductsService {
     const notification = new Notification();
     notification.title = 'Producto con propiedad faltante';
     notification.description = `El producto ${product.descripcion} (${product.id}) tiene la propiedad faltante o no válida: ${missingField}.`;
-    notification.readed = true;
-    notification.readedAt = new Date();
+    notification.readed = false;
+    notification.url = `/articulos/editar/${product.id}`;
 
     await this.notificationRepository.save(notification);
 

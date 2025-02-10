@@ -19,6 +19,7 @@ export class NotificationsService {
         description: notification.description,
         readed: notification.readed,
         createdAt: notification.createdAt,
+        url: notification.url,
       });
     });
     return {
@@ -40,12 +41,14 @@ export class NotificationsService {
 
   async deleteReadedNtoifications() {
     // Delete all readed notifications, where readed is true and readedAt is 1 week old
+    console.warn('Deleting readed notifications');
     const date = new Date();
     date.setDate(date.getDate() - 7);
-    await this.notificationRepository.delete({
+    const notificationsDeleted = await this.notificationRepository.delete({
       readed: true,
       readedAt: LessThan(date),
     });
+    console.warn('Deleted notifications:', notificationsDeleted);
   }
 
   async markAsReaded(id: number) {
