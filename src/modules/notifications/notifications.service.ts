@@ -6,7 +6,7 @@ export class NotificationsService {
   constructor(
     @InjectRepository(Notification)
     private notificationRepository: Repository<Notification>,
-  ) {}
+  ) { }
   async getNotifications() {
     const notifications = await this.notificationRepository.find();
 
@@ -45,8 +45,7 @@ export class NotificationsService {
     const date = new Date();
     date.setDate(date.getDate() - 7);
     const notificationsDeleted = await this.notificationRepository.delete({
-      readed: true,
-      readedAt: LessThan(date),
+      createdAt: LessThan(date),
     });
     console.warn('Deleted notifications:', notificationsDeleted);
   }

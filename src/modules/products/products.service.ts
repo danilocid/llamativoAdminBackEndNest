@@ -15,7 +15,7 @@ export class ProductsService {
     @InjectRepository(Notification)
     private notificationRepository: Repository<Notification>,
     private notificationsService: NotificationsService,
-  ) {}
+  ) { }
   async getAllProducts(t: GetProductsDto) {
     const skippedItems = (t.page - 1) * 10;
     const sort = t.sort;
@@ -193,8 +193,8 @@ export class ProductsService {
       const notification = new Notification();
       notification.title = 'Producto inactivo';
       notification.description = `El producto ${product.descripcion} ha sido seteado como inactivo.`;
-      notification.readed = true;
-      notification.readedAt = new Date();
+      notification.readed = false;
+      notification.url = `/articulos/ver/${product.id}`;
       await this.notificationRepository.save(notification);
     });
     // return a message with the amount of products set to inactive
