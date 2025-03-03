@@ -4,14 +4,21 @@ import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+import { Logger } from '@nestjs/common';
 
 export class AuthService {
+  private _logger: Logger = new Logger(AuthService.name);
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
     private jwtService: JwtService,
   ) {}
   async login(loginAuthDto: LoginAuthDto) {
+    this._logger.log('log' + loginAuthDto);
+    this._logger.debug('debug' + loginAuthDto);
+    this._logger.error('error' + loginAuthDto);
+    this._logger.verbose('verbose' + loginAuthDto);
+    this._logger.warn('warn' + loginAuthDto);
     const user = await this.userRepository.findOne({
       where: { user: loginAuthDto.user },
     });

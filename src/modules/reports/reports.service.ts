@@ -3,7 +3,7 @@ import { Sales } from '../sales/entities/sales.entity';
 import { Repository, Between } from 'typeorm';
 import { ReportDataType } from './entities/report-data-type.entity';
 import { ReportDataTypeDto } from './dto/report-data-type.dto';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, Logger } from '@nestjs/common';
 import { ReportData } from './entities/report-data.entity';
 import { InsertReportDataDto } from './dto/insert-report-data.dto';
 
@@ -23,8 +23,8 @@ export class ReportsService {
     //get the sales of the previous month
     let previousMonth = month - 1;
     let previousYear = year;
-    if (previousMonth == 1) {
-      previousMonth = 12;
+    if (previousMonth == 0) {
+      previousMonth = 11;
       previousYear = year - 1;
     }
 
