@@ -14,11 +14,12 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
   async login(loginAuthDto: LoginAuthDto) {
-    this._logger.log('log' + loginAuthDto);
-    this._logger.debug('debug' + loginAuthDto);
-    this._logger.error('error' + loginAuthDto);
-    this._logger.verbose('verbose' + loginAuthDto);
-    this._logger.warn('warn' + loginAuthDto);
+    console.log(AuthService.name + ' log ' + JSON.stringify(loginAuthDto));
+    this._logger.log('log ' + JSON.stringify(loginAuthDto));
+    this._logger.debug('debug ' + JSON.stringify(loginAuthDto));
+    this._logger.error('error ' + JSON.stringify(loginAuthDto));
+    this._logger.verbose('verbose ' + JSON.stringify(loginAuthDto));
+    this._logger.warn('warn ' + JSON.stringify(loginAuthDto));
     const user = await this.userRepository.findOne({
       where: { user: loginAuthDto.user },
     });
