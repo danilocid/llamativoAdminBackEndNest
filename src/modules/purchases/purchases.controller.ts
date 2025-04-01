@@ -25,6 +25,13 @@ export class PurchasesController {
     return await this.purchasesService.getAllPurchases(t);
   }
 
+  @Get('report')
+  /*  @ApiBearerAuth('jwt')
+  @UseGuards(JwtAuthGuard) */
+  async getReport(@Query() t: GetPurchasesDto) {
+    return await this.purchasesService.getReport(t);
+  }
+
   @Get('types')
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)

@@ -204,4 +204,79 @@ export class PurchasesService {
       };
     }
   }
+
+  async getReport(dto: GetPurchasesDto) {
+    const startDate = new Date(dto.year, dto.month - 1, 1);
+    const endDate = new Date(dto.year, dto.month, 1);
+    const currentMonthPurchases = await this.purchaseRepository.find({
+      where: {
+        fecha_documento: Between(startDate, endDate),
+      },
+      order: {
+        fecha_documento: 'ASC',
+      },
+      relations: ['proveedor', 'tipo_documento', 'tipo_compra'],
+    });
+
+    let previousMonth = dto.month - 1;
+    let previousYear = dto.year;
+    if (previousMonth == 0) {
+      previousYear = dto.year - 1;
+      previousMonth = 12;
+    }
+    const previousMonthStart = new Date(previousYear, previousMonth - 1, 1);
+    const previousMonthEnd = new Date(previousYear, previousMonth, 1);
+    const previousMonthPurchases = await this.purchaseRepository.find({
+      where: {
+        fecha_documento: Between(previousMonthStart, previousMonthEnd),
+      },
+      order: {
+        fecha_documento: 'ASC',
+      },
+    });
+    let currentMonthCount = 0;
+    let currentMonthTotal = 0;
+    let currentMonthTotalCost = 0;
+
+    let previousMonthCount = 0;
+    let previousMonthTotal = 0;
+    let previousMonthTotalCost = 0;
+
+    currentMonthPurchases.forEach((purchase) => {
+      currentMonthCount++;
+      currentMonthTotal +=
+        purchase.monto_neto_documento + purchase.monto_imp_documento;
+      currentMonthTotalCost +=
+        purchase.costo_neto_documento + purchase.costo_imp_documento;
+    });
+
+    previousMonthPurchases.forEach((purchase) => {
+      previousMonthCount++;
+      previousMonthTotal +=
+        purchase.monto_neto_documento + purchase.monto_imp_documento;
+      previousMonthTotalCost +=
+        purchase.costo_neto_documento + purchase.costo_imp_documento;
+    });
+
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: 'Report fetched successfully',
+      data: {
+        purchases: currentMonthPurchases,
+
+        totals: {
+          currentMonth: {
+            count: currentMonthCount,
+            total: currentMonthTotal,
+            totalCost: currentMonthTotalCost,
+          },
+          previousMonth: {
+            count: previousMonthCount,
+            total: previousMonthTotal,
+            totalCost: previousMonthTotalCost,
+          },
+        },
+      },
+    };
+  }
 }

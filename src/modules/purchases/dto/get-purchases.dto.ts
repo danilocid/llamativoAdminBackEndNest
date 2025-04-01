@@ -6,14 +6,14 @@ export class GetPurchasesDto {
 
   @ApiProperty({
     description: 'month',
-    example: 7,
+    example: 3,
   })
   @IsNotEmpty()
   month: number;
 
   @ApiProperty({
     description: 'year',
-    example: 2024,
+    example: 2025,
   })
   @IsNotEmpty()
   year: number;
