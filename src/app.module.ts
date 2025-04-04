@@ -14,6 +14,7 @@ import { PurchasesModule } from './modules/purchases/purchases.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { ReceptionsModule } from './modules/receptions/receptions.module';
+import { MercadoLibreModule } from './modules/mercado-libre/mercado-libre.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { ReceptionsModule } from './modules/receptions/receptions.module';
     ReceptionsModule,
     ReportsModule,
     SalesModule,
+    MercadoLibreModule,
   ],
   controllers: [],
   providers: [
