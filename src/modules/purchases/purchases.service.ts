@@ -69,7 +69,6 @@ export class PurchasesService {
         PasswordSII: process.env.SIMPLE_API_PASS_SII,
         RutEmpresa: process.env.SIMPLE_API_RUT_EMPRESA,
         Ambiente: 1,
-        Detallado: true,
       };
       responseData = await axios.post(url, body, {
         headers: { Authorization: process.env.SIMPLE_API_PASS },
@@ -157,6 +156,7 @@ export class PurchasesService {
 
       try {
         await this.purchaseRepository.save(newPurchase);
+        console.log('Compra guardada correctamente' + newPurchase.documento);
         purchasesCount++;
       } catch (error) {
         console.error('Error al guardar la compra', error);
