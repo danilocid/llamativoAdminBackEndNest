@@ -7,6 +7,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { NotFoundException } from '@nestjs/common';
 import { Notification } from '../notifications/entities/notification.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { MercadoLibreService } from '../mercado-libre/mercado-libre.service';
 
 export class ProductsService {
   constructor(
@@ -15,7 +16,8 @@ export class ProductsService {
     @InjectRepository(Notification)
     private notificationRepository: Repository<Notification>,
     private notificationsService: NotificationsService,
-  ) { }
+    private mercadoLibreService: MercadoLibreService,
+  ) {}
   async getAllProducts(t: GetProductsDto) {
     const skippedItems = (t.page - 1) * 10;
     const sort = t.sort;
@@ -164,6 +166,7 @@ export class ProductsService {
     // get all products with stock 0 and active true
     await this.notificationsService.deleteReadedNtoifications();
     await this.createNotificationNoPublicado();
+    await this.mercadoLibreService.listProducts();
     const products = await this.productsRepository.find({
       where: { stock: 0, activo: true },
     });

@@ -15,6 +15,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { ReceptionsModule } from './modules/receptions/receptions.module';
 import { MercadoLibreModule } from './modules/mercado-libre/mercado-libre.module';
+import { GoogleLoggingService } from './common/services/google-logging.service';
 
 @Module({
   imports: [
@@ -39,6 +40,8 @@ import { MercadoLibreModule } from './modules/mercado-libre/mercado-libre.module
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
     },
+    GoogleLoggingService,
   ],
+  exports: [GoogleLoggingService],
 })
 export class AppModule {}
