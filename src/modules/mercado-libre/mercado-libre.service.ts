@@ -60,6 +60,13 @@ export class MercadoLibreService {
                   title: 'Producto no encontrado',
                   description: notificationText,
                 });
+                await this.googleLoggingService.log(
+                  `No se encontró el producto en la base de datos`,
+                  { productDetails, variation },
+                  'WARNING',
+                  'listProducts',
+                  'mercado-libre',
+                );
               } else {
                 variation = {
                   productId: productDetails.data.id,
@@ -94,6 +101,13 @@ export class MercadoLibreService {
                 title: 'Producto no encontrado',
                 description: notificationText,
               });
+              await this.googleLoggingService.log(
+                `No se encontró el producto en la base de datos`,
+                { productDetails },
+                'WARNING',
+                'listProducts',
+                'mercado-libre',
+              );
             }
           }
 
@@ -234,13 +248,6 @@ export class MercadoLibreService {
       where: isVariant ? { id_variante_ml: id } : { id_ml: id },
     });
     if (!product) {
-      await this.googleLoggingService.log(
-        `No se encontró el producto en la base de datos`,
-        { id, tipo: isVariant ? 'id_variante_ml' : 'id_ml' },
-        'INFO',
-        'validateProductExist',
-        'mercado-libre',
-      );
       return null;
     }
 

@@ -37,33 +37,33 @@ export class MercadoLibreAuthService {
       const diffInSeconds = Math.floor(
         (now.getTime() - createdAt.getTime()) / 1000,
       );
-      await this.googleLoggingService.log(
+      /* await this.googleLoggingService.log(
         `Diferencia en segundos: ${diffInSeconds}`,
         null,
         'INFO',
         'getAuthToken',
         'mercado-libre-auth',
-      );
+      ); */
       if (diffInSeconds < 21500) {
         // Si el token es válido (menos de 21500 segundos desde su creación), lo devolvemos
-        await this.googleLoggingService.log(
+        /*  await this.googleLoggingService.log(
           'Token válido, no es necesario refrescarlo',
           null,
           'INFO',
           'getAuthToken',
           'mercado-libre-auth',
-        );
+        ); */
         return token.accessToken;
       }
     }
     // Si el token no es válido o no existe, lo refrescamos
-    await this.googleLoggingService.log(
+    /* await this.googleLoggingService.log(
       'Token no válido o no existe, refrescando token...',
       null,
       'INFO',
       'getAuthToken',
       'mercado-libre-auth',
-    );
+    ); */
 
     const data = {
       grant_type: 'refresh_token',
