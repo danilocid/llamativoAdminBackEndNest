@@ -182,13 +182,6 @@ export class ProductsService {
     // set all products to inactive, set publicado to false and enlace_ml to null
     products.forEach((product) => {
       product.activo = false;
-      product.publicado = false;
-      product.enlace_ml = null;
-      product.id_ml = null;
-      product.id_variante_ml = null;
-      product.publicado_ps = false;
-      product.id_ps = null;
-      product.enlace_ps = null;
     });
     await this.productsRepository.save(products);
     // create a notification for each product set to inactive
