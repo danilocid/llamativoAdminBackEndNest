@@ -276,7 +276,7 @@ export class MercadoLibreService {
       await this.notificationRepository.save({
         title: 'Stock diferente:' + product.descripcion,
         description: notificationText,
-        url: '/articulos/editar/' + product.id,
+        url: '/articulos/ver/' + product.id,
       });
     }
     // Validar si el precio en la base de datos es diferente al precio de Mercado Libre
@@ -285,7 +285,7 @@ export class MercadoLibreService {
       await this.notificationRepository.save({
         title: 'Precio diferente:' + product.descripcion,
         description: notificationText,
-        url: '/articulos/editar/' + product.id,
+        url: '/articulos/ver/' + product.id,
       });
     }
     // validar si el enlace al producto es diferente
@@ -294,7 +294,7 @@ export class MercadoLibreService {
       await this.notificationRepository.save({
         title: 'Enlace diferente:' + product.descripcion,
         description: notificationText,
-        url: '/articulos/editar/' + product.id,
+        url: '/articulos/ver/' + product.id,
       });
     }
   }
