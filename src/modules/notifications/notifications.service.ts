@@ -1,12 +1,15 @@
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan } from 'typeorm';
 import { Notification } from './entities/notification.entity';
 import { CreateNotificationDto } from './dto/notification.dto';
+
+@Injectable()
 export class NotificationsService {
   constructor(
     @InjectRepository(Notification)
     private notificationRepository: Repository<Notification>,
-  ) { }
+  ) {}
   async getNotifications() {
     const notifications = await this.notificationRepository.find();
 
@@ -39,7 +42,7 @@ export class NotificationsService {
     };
   }
 
-  async deleteReadedNtoifications() {
+  async deleteReadedNotifications() {
     // Delete all readed notifications, where readed is true and readedAt is 1 week old
     console.warn('Deleting readed notifications');
     const date = new Date();
@@ -66,11 +69,23 @@ export class NotificationsService {
       notification.readedAt = new Date();
       await this.notificationRepository.save(notification);
     }
-    this.deleteReadedNtoifications();
+    this.deleteReadedNotifications();
     return {
       serverResponseCode: 200,
       serverResponseMessage: 'Notificación marcada como leída.',
       data: notification,
+    };
+  }
+
+  async deleteAllNotifications() {
+    console.warn('Eliminando todas las notificaciones');
+    const notificationsDeleted = await this.notificationRepository.delete({});
+    console.warn('Notificaciones eliminadas:', notificationsDeleted);
+
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: 'Todas las notificaciones han sido eliminadas.',
+      data: notificationsDeleted,
     };
   }
 }

@@ -8,7 +8,13 @@ import {
   Body,
   Put,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiParam, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiParam,
+  ApiTags,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { ProductsService } from './products.service';
 import { GetProductsDto } from './dto/get.dto';
@@ -28,10 +34,16 @@ export class ProductsController {
   }
 
   // set product as inactive
-
   @Get('inactive')
-  async setInactive() {
-    return await this.productsService.setInactive();
+  @ApiQuery({
+    name: 'clearNotifications',
+    description: 'Si es true, elimina todas las notificaciones',
+    required: false,
+    type: 'boolean',
+    example: false,
+  })
+  async setInactive(@Query('clearNotifications') clearNotifications?: boolean) {
+    return await this.productsService.setInactive(clearNotifications);
   }
 
   // get inventory resume

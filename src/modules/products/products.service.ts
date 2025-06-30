@@ -8,14 +8,16 @@ import { NotFoundException } from '@nestjs/common';
 import { Notification } from '../notifications/entities/notification.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MercadoLibreService } from '../mercado-libre/mercado-libre.service';
+import { Injectable } from '@nestjs/common';
 
+@Injectable()
 export class ProductsService {
   constructor(
     @InjectRepository(Products)
     private productsRepository: Repository<Products>,
     @InjectRepository(Notification)
     private notificationRepository: Repository<Notification>,
-    private notificationsService: NotificationsService,
+    private readonly notificationsService: NotificationsService,
     private mercadoLibreService: MercadoLibreService,
   ) {}
   async getAllProducts(t: GetProductsDto) {
@@ -162,9 +164,14 @@ export class ProductsService {
     };
   }
 
-  async setInactive() {
+  async setInactive(clearNotifications?: boolean) {
     // get all products with stock 0 and active true
-    await this.notificationsService.deleteReadedNtoifications();
+    // Si clearNotifications es true, eliminar todas las notificaciones
+    if (clearNotifications === true) {
+      await this.notificationsService.deleteAllNotifications();
+    } else {
+      await this.notificationsService.deleteReadedNotifications();
+    }
     await this.createNotificationNoPublicado();
     await this.mercadoLibreService.listProducts();
     const products = await this.productsRepository.find({
@@ -195,9 +202,12 @@ export class ProductsService {
     });
     // return a message with the amount of products set to inactive
     console.warn(`${products.length} productos inactivos.`);
+
     return {
       serverResponseCode: 200,
-      serverResponseMessage: `${products.length} productos inactivos.`,
+      serverResponseMessage: clearNotifications
+        ? 'Productos inactivos procesados y notificaciones eliminadas'
+        : 'Productos inactivos procesados',
       data: null,
     };
   }
