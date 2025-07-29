@@ -7,12 +7,14 @@ import { Repository } from 'typeorm';
 import { Products } from '../products/entities/products.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { MercadoLibreAuthService } from './mercado-libre-auth.service';
+import { ProductSyncService } from './product-sync.service';
 @Injectable()
 export class MercadoLibreService {
   constructor(
     private readonly googleLoggingService: GoogleLoggingService,
     private readonly httpService: HttpService,
     private readonly mercadoLibreAuthService: MercadoLibreAuthService,
+    private readonly productSyncService: ProductSyncService, // Nuevo servicio
     @InjectRepository(Products)
     private readonly productsRepository: Repository<Products>,
     @InjectRepository(Notification)
@@ -42,50 +44,38 @@ export class MercadoLibreService {
           delete productDetails.data.shipping;
           delete productDetails.data.seller_address;
           delete productDetails.data.attributes;
+
           if (productDetails.data.variations.length > 0) {
             for (let variation of productDetails.data.variations) {
-              const productFromDB = await this.validateProductExist(
-                variation.id,
-                true,
-              );
-              if (!productFromDB) {
-                let notificationText =
-                  'El producto ' +
-                  productDetails.data.title +
-                  ' con ID ' +
-                  variation.id +
-                  ' no se encontró en la base de datos';
-                // Crear notificación
-                await this.notificationRepository.save({
-                  title: 'Producto no encontrado',
-                  description: notificationText,
-                });
-                await this.googleLoggingService.log(
-                  `No se encontró el producto en la base de datos`,
-                  { productDetails, variation },
-                  'WARNING',
-                  'listProducts',
-                  'mercado-libre',
+              const productFromDB =
+                await this.productSyncService.validateAndSyncProduct(
+                  productDetails,
+                  variation,
+                  true,
                 );
-              } else {
-                variation = {
-                  productId: productDetails.data.id,
-                  ...variation,
-                  permalink: productDetails.data.permalink,
-                };
-                await this.validateProductStockAndPrice(
+
+              if (productFromDB) {
+                await this.productSyncService.validateStockAndPrice(
                   productFromDB,
                   variation,
+                );
+              } else {
+                await this.productSyncService.createProductNotification(
+                  'Producto no encontrado',
+                  `El producto ${productDetails.data.title} con ID ${variation.id} no se encontró en la base de datos`,
                 );
               }
             }
           } else {
-            const productFromDB = await this.validateProductExist(
-              productDetails.data.id,
-              false,
-            );
+            const productFromDB =
+              await this.productSyncService.validateAndSyncProduct(
+                productDetails,
+                productDetails.data,
+                false,
+              );
+
             if (productFromDB) {
-              await this.validateProductStockAndPrice(
+              await this.productSyncService.validateStockAndPrice(
                 productFromDB,
                 productDetails.data,
               );
@@ -101,13 +91,6 @@ export class MercadoLibreService {
                 title: 'Producto no encontrado',
                 description: notificationText,
               });
-              await this.googleLoggingService.log(
-                `No se encontró el producto en la base de datos`,
-                { productDetails },
-                'WARNING',
-                'listProducts',
-                'mercado-libre',
-              );
             }
           }
 
@@ -126,8 +109,8 @@ export class MercadoLibreService {
               error.message,
           );
         }
-        // Solo un log para la espera
       }
+
       delete response.data.seller_id;
       delete response.data.paging;
       delete response.data.query;
@@ -169,13 +152,13 @@ export class MercadoLibreService {
         }),
       );
     } catch (error) {
-      await this.googleLoggingService.log(
+      /*  await this.googleLoggingService.log(
         'Error al obtener detalles del producto de Mercado Libre',
         { error: error.message, id },
         'ERROR',
         'getProductDetailsFromMl',
         'mercado-libre',
-      );
+      ); */
       response = {
         error: error.message,
         status: error.response?.status,
@@ -247,6 +230,7 @@ export class MercadoLibreService {
     const product = await this.productsRepository.findOne({
       where: isVariant ? { id_variante_ml: id } : { id_ml: id },
     });
+
     if (!product) {
       return null;
     }
@@ -290,6 +274,10 @@ export class MercadoLibreService {
     }
     // validar si el enlace al producto es diferente
     if (product.enlace_ml !== productDetails.permalink) {
+      console.log(
+        'Enlace al producto diferente en la base de datos y Mercado Libre',
+        { dbLink: product.enlace_ml, mlLink: productDetails.permalink },
+      );
       let notificationText = `El enlace al producto ${product.descripcion} en la base de datos es diferente al enlace de Mercado Libre.`;
       await this.notificationRepository.save({
         title: 'Enlace diferente:' + product.descripcion,
@@ -297,5 +285,73 @@ export class MercadoLibreService {
         url: '/articulos/ver/' + product.id,
       });
     }
+  }
+
+  async validateProductExistAndDetails(
+    productDetails: any,
+    variation: any,
+    isVariant: boolean,
+  ) {
+    // Buscar producto en la base de datos
+    const productFromDB = await this.productsRepository.findOne({
+      where: isVariant
+        ? { id_variante_ml: variation.id }
+        : { id_ml: productDetails.data.id },
+    });
+
+    if (!productFromDB) {
+      // Si no existe el producto, intentar buscarlo por SKU para actualizarlo
+      if (variation.attributes) {
+        const sku = variation.attributes.find(
+          (attribute) => attribute.id === 'SELLER_SKU',
+        )?.value_name;
+
+        await this.googleLoggingService.log(
+          'Buscando producto por SKU',
+          { sku, variationId: variation.id },
+          'INFO',
+          'validateProductExistAndDetails',
+          'mercado-libre',
+        );
+
+        if (sku) {
+          const productBySku = await this.productsRepository.findOne({
+            where: { cod_barras: sku },
+          });
+
+          if (productBySku) {
+            // Actualizar el producto con los detalles de Mercado Libre
+            productBySku.id_variante_ml = variation.id;
+            productBySku.id_ml = productDetails.data.id;
+            productBySku.enlace_ml = productDetails.data.permalink;
+            productBySku.publicado = true;
+
+            await this.productsRepository.save(productBySku);
+
+            await this.googleLoggingService.log(
+              'Producto encontrado por SKU y actualizado',
+              { productId: productBySku.id, sku, variationId: variation.id },
+              'INFO',
+              'validateProductExistAndDetails',
+              'mercado-libre',
+            );
+
+            return productBySku;
+          }
+        }
+      }
+
+      await this.googleLoggingService.log(
+        'Producto no encontrado en la base de datos',
+        { variationId: variation.id, productId: productDetails.data.id },
+        'WARNING',
+        'validateProductExistAndDetails',
+        'mercado-libre',
+      );
+
+      return null;
+    }
+
+    return productFromDB;
   }
 }

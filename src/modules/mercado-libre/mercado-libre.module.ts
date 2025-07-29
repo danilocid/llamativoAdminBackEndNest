@@ -8,18 +8,20 @@ import { GoogleLoggingService } from 'src/common/services/google-logging.service
 import { Products } from '../products/entities/products.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { MercadoLibreAuthService } from './mercado-libre-auth.service';
+import { ProductSyncService } from './product-sync.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([MercadoLibreToken, Products, Notification]),
     HttpModule,
+    TypeOrmModule.forFeature([MercadoLibreToken, Products, Notification]),
   ],
   controllers: [MercadoLibreController],
   providers: [
     MercadoLibreService,
-    GoogleLoggingService,
     MercadoLibreAuthService,
+    ProductSyncService,
+    GoogleLoggingService,
   ],
-  exports: [MercadoLibreService, MercadoLibreAuthService, GoogleLoggingService],
+  exports: [MercadoLibreService, MercadoLibreAuthService, ProductSyncService],
 })
 export class MercadoLibreModule {}

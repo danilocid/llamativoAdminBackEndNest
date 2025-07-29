@@ -5,6 +5,40 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.2.0] - 2025-07-28
+
+### Agregado
+
+- Nuevo servicio `ProductSyncService` para manejar la sincronización de productos de Mercado Libre
+- Implementación de transacciones en lotes para operaciones de base de datos (`syncProductBatch`)
+- Método optimizado `findProductByMLId` con selección específica de campos
+- Validación mejorada de diferencias entre productos (stock, precio, enlace)
+- Sistema de retorno estructurado para validaciones con detalles de diferencias
+- Logging contextual mejorado con información específica por operación
+
+### Modificado
+
+- Refactorización del método `validateProductExistAndDetails` movido a `ProductSyncService`
+- Refactorización del método `validateProductStockAndPrice` movido a `ProductSyncService`
+- Optimización del método `createProductNotification` con mejor manejo de errores
+- Separación de responsabilidades entre `MercadoLibreService` y `ProductSyncService`
+- Mejora en la estructura de logging con contextos más específicos
+
+### Mejorado
+
+- Mejor separación de responsabilidades en el código
+- Mayor testabilidad mediante servicios independientes
+- Manejo más robusto de errores en operaciones de sincronización
+- Performance mejorada con consultas optimizadas a la base de datos
+- Reutilización de código mediante servicios especializados
+
+### Técnico
+
+- Implementación de transacciones de TypeORM para operaciones en lote
+- Optimización de consultas con selección específica de campos
+- Mejor arquitectura modular con servicios especializados
+- Logging más granular y contextual por operación
+
 ## [1.1.0] - 2025-06-30
 
 ### Agregado
@@ -32,3 +66,24 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 - Agregada dependencia `@google-cloud/logging` para integración con Google Cloud
 - Configuración de credenciales de Google Cloud mediante variable de entorno `GOOGLE_APPLICATION_CREDENTIALS`
 - Implementación de logging estructurado con metadatos adicionales
+
+## [1.0.0] - 2025-06-01
+
+### Agregado
+
+- Implementación inicial del backend con NestJS
+- Módulo de autenticación con JWT
+- Integración con API de Mercado Libre
+- Sistema de gestión de productos e inventarios
+- Sistema de notificaciones
+- Documentación Swagger/OpenAPI
+- Configuración de TypeORM con MySQL
+
+### Características Iniciales
+
+- CRUD completo para productos
+- Sincronización con catálogo de Mercado Libre
+- Sistema de autenticación y autorización
+- Manejo de excepciones centralizado
+- Validación de DTOs con class-validator
+- Configuración mediante variables de entorno
