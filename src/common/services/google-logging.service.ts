@@ -17,7 +17,7 @@ export class GoogleLoggingService {
     method?: string,
     service?: string,
   ) {
-    /*  if (!method) {
+    if (!method) {
       method = 'default-method'; // Método por defecto si no se proporciona
     }
     if (!service) {
@@ -27,7 +27,7 @@ export class GoogleLoggingService {
     const entry = log.entry(
       { resource: { type: 'global' }, severity }, // Etiquetas para el log
       { message, data, method, service }, // Datos adicionales
-    ); */
+    );
 
     try {
       //await log.write(entry);

@@ -9,6 +9,7 @@ import { Notification } from '../notifications/entities/notification.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MercadoLibreService } from '../mercado-libre/mercado-libre.service';
 import { Injectable } from '@nestjs/common';
+import { GoogleLoggingService } from 'src/common/services/google-logging.service';
 
 @Injectable()
 export class ProductsService {
@@ -19,7 +20,9 @@ export class ProductsService {
     private notificationRepository: Repository<Notification>,
     private readonly notificationsService: NotificationsService,
     private mercadoLibreService: MercadoLibreService,
+    private readonly googleLoggingService: GoogleLoggingService,
   ) {}
+
   async getAllProducts(t: GetProductsDto) {
     const skippedItems = (t.page - 1) * 10;
     const sort = t.sort;
@@ -71,6 +74,14 @@ export class ProductsService {
     // Execute the query and get the results
     const [products, count] = await queryBuilder.getManyAndCount();
 
+    await this.googleLoggingService.log(
+      'Productos obtenidos exitosamente',
+      { count, filters: { stockt, active, param } },
+      'INFO',
+      'getAllProducts',
+      'products',
+    );
+
     return {
       serverResponseCode: 200,
       serverResponseMessage: 'Productos obtenidos.',
@@ -120,6 +131,15 @@ export class ProductsService {
       product.cod_barras = cod_barras.toString();
       await this.productsRepository.save(product);
     }
+
+    await this.googleLoggingService.log(
+      'Producto creado exitosamente',
+      { productId: product.id, cod_interno: product.cod_interno },
+      'INFO',
+      'createProduct',
+      'products',
+    );
+
     return {
       serverResponseCode: 201,
       serverResponseMessage: 'Producto creado.',
@@ -157,6 +177,15 @@ export class ProductsService {
     if (t.id_ps === '' || t.id_ps === undefined) t.id_ps = null;
 
     await this.productsRepository.update(t.id, t);
+
+    await this.googleLoggingService.log(
+      'Producto actualizado exitosamente',
+      { productId: t.id },
+      'INFO',
+      'updateProduct',
+      'products',
+    );
+
     return {
       serverResponseCode: 200,
       serverResponseMessage: 'Producto actualizado.',
@@ -179,7 +208,13 @@ export class ProductsService {
     });
     // if there are no products with stock 0 and active true, return an message
     if (products.length === 0) {
-      console.warn('No hay productos inactivos.');
+      await this.googleLoggingService.log(
+        'No hay productos inactivos para procesar',
+        null,
+        'WARNING',
+        'setInactive',
+        'products',
+      );
       return {
         serverResponseCode: 200,
         serverResponseMessage: 'No hay productos inactivos.',
@@ -201,7 +236,13 @@ export class ProductsService {
       await this.notificationRepository.save(notification);
     });
     // return a message with the amount of products set to inactive
-    console.warn(`${products.length} productos inactivos.`);
+    await this.googleLoggingService.log(
+      'Productos procesados como inactivos',
+      { count: products.length, clearNotifications },
+      'INFO',
+      'setInactive',
+      'products',
+    );
 
     return {
       serverResponseCode: 200,
@@ -220,14 +261,20 @@ export class ProductsService {
     });
 
     if (products.length === 0) {
-      console.warn('No hay productos con stock disponible.');
+      await this.googleLoggingService.log(
+        'No hay productos con stock disponible',
+        null,
+        'WARNING',
+        'createNotificationNoPublicado',
+        'products',
+      );
       return {
         serverResponseCode: 200,
         serverResponseMessage: 'No hay productos con stock disponible.',
         data: null,
       };
     }
-
+    await this.setProductsAsActive(products);
     // Filtramos los productos con problemas y determinamos la primera propiedad faltante
     const productsWithIssues = products
       .map((product) => {
@@ -245,7 +292,13 @@ export class ProductsService {
       .filter((item) => item !== null);
 
     if (productsWithIssues.length === 0) {
-      console.warn('No hay productos con propiedades faltantes o no válidas.');
+      await this.googleLoggingService.log(
+        'No hay productos con propiedades faltantes o no válidas',
+        null,
+        'INFO',
+        'createNotificationNoPublicado',
+        'products',
+      );
       return {
         serverResponseCode: 200,
         serverResponseMessage:
@@ -267,11 +320,12 @@ export class ProductsService {
 
     await this.notificationRepository.save(notification);
 
-    console.warn(
-      'Notificación creada. Producto con propiedad faltante. ID:',
-      product.id,
-      'Propiedad faltante:',
-      missingField,
+    await this.googleLoggingService.log(
+      'Notificación creada para producto con propiedad faltante',
+      { productId: product.id, missingField },
+      'INFO',
+      'createNotificationNoPublicado',
+      'products',
     );
 
     return {
@@ -303,6 +357,14 @@ export class ProductsService {
       totalProfit += product.stock * (salePrice - costPrice);
     });
 
+    await this.googleLoggingService.log(
+      'Resumen de inventario calculado',
+      { totalUnits, totalCost, totalSale, totalProfit },
+      'INFO',
+      'getInventoryResume',
+      'products',
+    );
+
     return {
       serverResponseCode: 200,
       serverResponseMessage: 'Resumen de inventario obtenido.',
@@ -312,6 +374,58 @@ export class ProductsService {
         totalSale,
         totalProfit,
       },
+    };
+  }
+
+  async setProductsAsActive(products: Products[]) {
+    // set products as active, when they have stock greater than 0, and are not active
+    const productsToUpdate = products.filter(
+      (product) => product.stock > 0 && !product.activo,
+    );
+
+    if (productsToUpdate.length === 0) {
+      await this.googleLoggingService.log(
+        'No hay productos para activar',
+        null,
+        'WARNING',
+        'setProductsAsActive',
+        'products',
+      );
+      return {
+        serverResponseCode: 200,
+        serverResponseMessage: 'No hay productos para activar.',
+        data: null,
+      };
+    }
+
+    productsToUpdate.forEach((product) => {
+      product.activo = true;
+    });
+
+    await this.productsRepository.save(productsToUpdate);
+
+    // create a notification for each product set to active
+    productsToUpdate.forEach(async (product) => {
+      const notification = new Notification();
+      notification.title = 'Producto activo';
+      notification.description = `El producto ${product.descripcion} ha sido seteado como activo.`;
+      notification.readed = false;
+      notification.url = `/articulos/ver/${product.id}`;
+      await this.notificationRepository.save(notification);
+    });
+
+    await this.googleLoggingService.log(
+      'Productos activados exitosamente',
+      { count: productsToUpdate.length },
+      'INFO',
+      'setProductsAsActive',
+      'products',
+    );
+
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: 'Productos activos procesados.',
+      data: null,
     };
   }
 }

@@ -7,6 +7,7 @@ import { Notification } from '../notifications/entities/notification.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { HttpModule } from '@nestjs/axios';
 import { MercadoLibreModule } from '../mercado-libre/mercado-libre.module';
+import { GoogleLoggingService } from 'src/common/services/google-logging.service';
 
 @Module({
   imports: [
@@ -15,6 +16,6 @@ import { MercadoLibreModule } from '../mercado-libre/mercado-libre.module';
     MercadoLibreModule,
   ],
   controllers: [ProductsController],
-  providers: [ProductsService, NotificationsService],
+  providers: [ProductsService, NotificationsService, GoogleLoggingService],
 })
 export class ProductsModule {}

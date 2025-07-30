@@ -5,6 +5,27 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.2.1] - 2025-07-29
+
+### Modificado
+
+- Reemplazados todos los `console.log` y `console.warn` por logs de Google Cloud en `ProductsService`
+- Optimización completa del logging en todas las operaciones de productos
+- Mejora en la trazabilidad de operaciones críticas como creación, actualización y gestión de inventario
+
+### Mejorado
+
+- Logging más detallado en operaciones de inventario y resumen de productos
+- Mejor contextualización de logs con información específica por operación
+- Manejo consistente de logs de advertencia para casos edge
+- Mayor visibilidad en operaciones de activación/desactivación de productos
+
+### Técnico
+
+- Implementación completa de Google Cloud Logging en el módulo de productos
+- Standardización del formato de logging en todo el servicio ProductsService
+- Adición de logs informativos y de advertencia contextualizados
+
 ## [1.2.0] - 2025-07-28
 
 ### Agregado
