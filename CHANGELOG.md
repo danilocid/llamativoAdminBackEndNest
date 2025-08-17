@@ -5,6 +5,41 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.2.2] - 2025-08-16
+
+### Modificado
+
+- Actualización completa de dependencias del proyecto a sus versiones más recientes y estables
+- Reorganización de dependencias moviendo herramientas de desarrollo a `devDependencies`
+- Reemplazo de `mysql` por `mysql2` para mejor soporte y performance
+- Actualización de todas las dependencias de NestJS a la versión 10.4.4
+
+### Mejorado
+
+- Performance mejorada con dependencias actualizadas
+- Mejor compatibilidad con Node.js 18+
+- Eliminación de dependencias duplicadas y mal organizadas
+- Actualización de herramientas de desarrollo (ESLint, TypeScript, Jest)
+
+### Técnico
+
+- Migración de `mysql` a `mysql2` (versión 3.11.3)
+- Actualización de `@nestjs/*` packages a versiones 10.4.x
+- Actualización de TypeScript a versión 5.6.2
+- Reorganización completa del package.json para mejor mantenimiento
+- Actualización de herramientas de testing y linting
+
+### Dependencias Actualizadas
+
+- `@nestjs/common`: ^10.4.4
+- `@nestjs/core`: ^10.4.4
+- `@nestjs/platform-express`: ^10.4.4
+- `@nestjs/swagger`: ^7.4.2
+- `axios`: ^1.7.7
+- `mysql2`: ^3.11.3
+- `typescript`: ^5.6.2
+- `reflect-metadata`: ^0.2.2
+
 ## [1.2.1] - 2025-07-29
 
 ### Modificado
