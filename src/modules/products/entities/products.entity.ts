@@ -40,6 +40,9 @@ export class Products {
   @Column({ type: 'boolean' })
   activo: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  deprecado: boolean;
+
   @CreateDateColumn({ name: 'created_at', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
 

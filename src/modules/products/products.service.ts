@@ -29,10 +29,18 @@ export class ProductsService {
     const columnt: string = t.order;
     const stockt = t.stock === 'true';
     const active = t.active === 'true';
+    const includeDeprecated = t.includeDeprecated === 'true';
     const param = t.param || '';
 
     // Create a query builder
     const queryBuilder = this.productsRepository.createQueryBuilder('product');
+
+    // By default, exclude deprecated products unless explicitly requested
+    if (!includeDeprecated) {
+      queryBuilder.andWhere('product.deprecado = :deprecado', {
+        deprecado: false,
+      });
+    }
 
     // Add stock condition if needed
     if (stockt) {
@@ -76,7 +84,7 @@ export class ProductsService {
 
     await this.googleLoggingService.log(
       'Productos obtenidos exitosamente',
-      { count, filters: { stockt, active, param } },
+      { count, filters: { stockt, active, includeDeprecated, param } },
       'INFO',
       'getAllProducts',
       'products',
@@ -119,6 +127,7 @@ export class ProductsService {
     const product = this.productsRepository.create(t);
     product.stock = 0;
     product.activo = true;
+    product.deprecado = t.deprecado || false; // Establecer deprecado como false por defecto
     // if product does not have a cod_barras, set it to a number based on the id plus 5000
     // take in mind that id is not set until the product is saved
     if (!product.cod_barras) {
@@ -203,8 +212,9 @@ export class ProductsService {
     }
     await this.createNotificationNoPublicado();
     await this.mercadoLibreService.listProducts();
+    // get all products with stock 0 and active true, but not deprecated
     const products = await this.productsRepository.find({
-      where: { stock: 0, activo: true },
+      where: { stock: 0, activo: true, deprecado: false },
     });
     // if there are no products with stock 0 and active true, return an message
     if (products.length === 0) {
@@ -256,8 +266,9 @@ export class ProductsService {
   async createNotificationNoPublicado() {
     // get all products with publicado false and stock greater than 0
     // pick 1 product at random, create a notification to set it to publicado
+    // OBVIAR productos deprecados
     const products = await this.productsRepository.find({
-      where: { stock: Not(0) },
+      where: { stock: Not(0), deprecado: false },
     });
 
     if (products.length === 0) {
@@ -342,9 +353,9 @@ export class ProductsService {
     let totalSale = 0;
     let totalProfit = 0;
 
-    // get all products with stock greater than 0
+    // get all products with stock greater than 0 and not deprecated
     const products = await this.productsRepository.find({
-      where: { stock: Not(0) },
+      where: { stock: Not(0), deprecado: false },
     });
 
     // calculate total units, total cost, total sale and total profit
@@ -378,9 +389,9 @@ export class ProductsService {
   }
 
   async setProductsAsActive(products: Products[]) {
-    // set products as active, when they have stock greater than 0, and are not active
+    // set products as active, when they have stock greater than 0, and are not active, and are not deprecated
     const productsToUpdate = products.filter(
-      (product) => product.stock > 0 && !product.activo,
+      (product) => product.stock > 0 && !product.activo && !product.deprecado,
     );
 
     if (productsToUpdate.length === 0) {

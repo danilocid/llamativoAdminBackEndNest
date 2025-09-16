@@ -106,4 +106,12 @@ export class CreateProductDto {
   })
   @IsOptional()
   enlace_ps: string;
+
+  @ApiProperty({
+    description: 'Producto deprecado',
+    example: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  readonly deprecado?: boolean;
 }

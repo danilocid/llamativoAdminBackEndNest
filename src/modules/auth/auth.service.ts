@@ -39,10 +39,7 @@ export class AuthService {
         serverResponseCode: 200,
         serverResponseMessage: 'Login exitoso.',
         data: this.jwtService.sign({
-          id: user.id,
-          user: user.user,
-          email: user.email,
-          name: user.name,
+          ...user,
         }),
       };
     }

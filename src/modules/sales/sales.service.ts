@@ -176,6 +176,7 @@ export class SalesService {
       //validate the product
       //validate the product exist
       //validate the product stock
+      //validate the product is not deprecated
       const productExist = await this.productsRepository.findOne({
         where: { id: product.articulo },
       });
@@ -187,10 +188,16 @@ export class SalesService {
       if (productExist.stock < product.cantidad) {
         productsError = true;
       }
+
+      if (productExist.deprecado) {
+        productsError = true;
+      }
     }
 
     if (productsError) {
-      throw new NotFoundException('Producto no encontrado o sin stock.');
+      throw new NotFoundException(
+        'Producto no encontrado, sin stock o deprecado.',
+      );
     }
 
     //save the sale

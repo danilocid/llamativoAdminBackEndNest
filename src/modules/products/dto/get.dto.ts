@@ -26,4 +26,12 @@ export class GetProductsDto extends PageDto {
   })
   @IsOptional()
   readonly all?: string;
+
+  @ApiProperty({
+    description: 'Incluir productos deprecados',
+    example: 'false',
+    default: 'false',
+  })
+  @IsOptional()
+  readonly includeDeprecated?: string;
 }
