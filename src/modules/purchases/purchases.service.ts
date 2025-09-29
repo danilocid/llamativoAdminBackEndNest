@@ -8,6 +8,10 @@ import axios from 'axios';
 import { PurchaseApiResponse } from './dto/purchases-api.interface';
 import { DocumentType } from '../common/entities/document_type.entity';
 import { UpdatePurchaseDto } from './dto/update-purchase.dto';
+import { GoogleLoggingService } from 'src/common/services/google-logging.service';
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
 export class PurchasesService {
   constructor(
     @InjectRepository(PurchasesTypes)
@@ -18,6 +22,7 @@ export class PurchasesService {
     private entitiesRepository: Repository<Entities>,
     @InjectRepository(DocumentType)
     private documentTypeRepository: Repository<DocumentType>,
+    private readonly googleLoggingService: GoogleLoggingService,
   ) {}
 
   async getTypes() {
@@ -26,6 +31,14 @@ export class PurchasesService {
         id: 'ASC',
       },
     });
+
+    await this.googleLoggingService.log(
+      'Tipos de compra obtenidos exitosamente',
+      { count: purchases.length },
+      'INFO',
+      'getTypes',
+      'purchases',
+    );
 
     return {
       serverResponseCode: 200,
@@ -47,6 +60,14 @@ export class PurchasesService {
       },
       relations: ['proveedor', 'tipo_documento', 'tipo_compra'],
     });
+
+    await this.googleLoggingService.log(
+      'Compras obtenidas exitosamente',
+      { month: dto.month, year: dto.year, count: purchases.length },
+      'INFO',
+      'getAllPurchases',
+      'purchases',
+    );
 
     return {
       serverResponseCode: 200,
@@ -74,14 +95,43 @@ export class PurchasesService {
         headers: { Authorization: process.env.SIMPLE_API_PASS },
       });
     } catch (error) {
-      console.error('Error fetching data from the API', error);
+      await this.googleLoggingService.log(
+        'Error al obtener datos de la API',
+        { errorCode: error.code },
+        'ERROR',
+        'createPurchaseFromApi',
+        'purchases',
+      );
+      delete error.request;
+      delete error.response.config;
+      delete error.response.request;
+      await this.googleLoggingService.log(
+        'Error detallado al obtener datos de la API',
+        { error },
+        'ERROR',
+        'createPurchaseFromApi',
+        'purchases',
+      );
+      return;
     }
     if (!responseData) {
-      console.error('No data fetched from the API');
+      await this.googleLoggingService.log(
+        'No se obtuvieron datos de la API',
+        {},
+        'ERROR',
+        'createPurchaseFromApi',
+        'purchases',
+      );
       return;
     }
     if (responseData.data.error) {
-      console.error('Error from the API', responseData.data.error);
+      await this.googleLoggingService.log(
+        'Error en la respuesta de la API',
+        { apiError: responseData.data.error },
+        'ERROR',
+        'createPurchaseFromApi',
+        'purchases',
+      );
       return;
     }
     const purchasesFromApi: PurchaseApiResponse[] =
@@ -95,13 +145,28 @@ export class PurchasesService {
       });
 
       if (!tipoDocumento) {
-        console.error('Tipo de documento no encontrado' + purchase.tipoDTE);
+        await this.googleLoggingService.log(
+          'Tipo de documento no encontrado',
+          { tipoDTE: purchase.tipoDTE },
+          'ERROR',
+          'createPurchaseFromApi',
+          'purchases',
+        );
       }
       const purchaseExists = await this.purchaseRepository.findOne({
         where: { documento: purchase.folio, tipo_documento: tipoDocumento },
       });
       if (purchaseExists) {
-        console.error('La compra ya existe', purchaseExists);
+        await this.googleLoggingService.log(
+          'La compra ya existe',
+          {
+            purchaseId: purchaseExists.id,
+            documento: purchaseExists.documento,
+          },
+          'WARN',
+          'createPurchaseFromApi',
+          'purchases',
+        );
         continue;
       }
       const newPurchase = new Purchases();
@@ -131,7 +196,13 @@ export class PurchasesService {
         try {
           await this.entitiesRepository.save(newEntity);
         } catch (error) {
-          console.error('Error al crear la entidad' + newEntity);
+          await this.googleLoggingService.log(
+            'Error al crear la entidad',
+            { entityRut: newEntity.rut, error },
+            'ERROR',
+            'createPurchaseFromApi',
+            'purchases',
+          );
         }
         newPurchase.proveedor = newEntity;
       } else {
@@ -156,16 +227,40 @@ export class PurchasesService {
 
       try {
         await this.purchaseRepository.save(newPurchase);
-        console.log('Compra guardada correctamente' + newPurchase.documento);
+        await this.googleLoggingService.log(
+          'Compra guardada correctamente',
+          { documento: newPurchase.documento },
+          'INFO',
+          'createPurchaseFromApi',
+          'purchases',
+        );
         purchasesCount++;
       } catch (error) {
-        console.error('Error al guardar la compra', error);
+        await this.googleLoggingService.log(
+          'Error al guardar la compra',
+          { error },
+          'ERROR',
+          'createPurchaseFromApi',
+          'purchases',
+        );
       }
     }
     if (purchasesCount === 0) {
-      console.error('No purchases created');
+      await this.googleLoggingService.log(
+        'No se crearon compras',
+        { month: dto.month, year: dto.year },
+        'WARN',
+        'createPurchaseFromApi',
+        'purchases',
+      );
     } else {
-      console.error('Purchases created', purchasesCount);
+      await this.googleLoggingService.log(
+        'Compras creadas exitosamente',
+        { purchasesCount, month: dto.month, year: dto.year },
+        'INFO',
+        'createPurchaseFromApi',
+        'purchases',
+      );
     }
   }
 
@@ -175,6 +270,13 @@ export class PurchasesService {
     });
 
     if (!purchase) {
+      await this.googleLoggingService.log(
+        'Compra no encontrada para editar',
+        { id },
+        'WARN',
+        'editPurchase',
+        'purchases',
+      );
       return {
         serverResponseCode: 400,
         serverResponseMessage: 'Purchase not found',
@@ -191,12 +293,26 @@ export class PurchasesService {
 
     try {
       await this.purchaseRepository.save(purchase);
+      await this.googleLoggingService.log(
+        'Compra actualizada exitosamente',
+        { id, documento: purchase.documento },
+        'INFO',
+        'editPurchase',
+        'purchases',
+      );
       return {
         serverResponseCode: 200,
         serverResponseMessage: 'Purchase updated successfully',
         data: purchase,
       };
     } catch (error) {
+      await this.googleLoggingService.log(
+        'Error al actualizar compra',
+        { id, error },
+        'ERROR',
+        'editPurchase',
+        'purchases',
+      );
       return {
         serverResponseCode: 400,
         serverResponseMessage: 'Error updating purchase',
@@ -257,6 +373,21 @@ export class PurchasesService {
       previousMonthTotalCost +=
         purchase.costo_neto_documento + purchase.costo_imp_documento;
     });
+
+    await this.googleLoggingService.log(
+      'Reporte de compras generado exitosamente',
+      {
+        month: dto.month,
+        year: dto.year,
+        currentMonthCount,
+        currentMonthTotal,
+        previousMonthCount,
+        previousMonthTotal,
+      },
+      'INFO',
+      'getReport',
+      'purchases',
+    );
 
     return {
       serverResponseCode: 200,

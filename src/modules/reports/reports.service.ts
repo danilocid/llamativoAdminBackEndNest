@@ -6,7 +6,10 @@ import { ReportDataTypeDto } from './dto/report-data-type.dto';
 import { BadRequestException, Logger } from '@nestjs/common';
 import { ReportData } from './entities/report-data.entity';
 import { InsertReportDataDto } from './dto/insert-report-data.dto';
+import { GoogleLoggingService } from 'src/common/services/google-logging.service';
+import { Injectable } from '@nestjs/common';
 
+@Injectable()
 export class ReportsService {
   constructor(
     // Inject the Sales entity
@@ -16,6 +19,7 @@ export class ReportsService {
     private reportDataTypeRepository: Repository<ReportDataType>,
     @InjectRepository(ReportData)
     private reportDataRepository: Repository<ReportData>,
+    private readonly googleLoggingService: GoogleLoggingService,
   ) {}
   async getMonthlySales(month: number, year: number) {
     const currentMonthSales = await this.getMonthlySalesData(month, year);
@@ -79,6 +83,15 @@ export class ReportsService {
     let countCurrentMonth = 0;
     let countPreviousMonth = 0;
     let countPreviousYear = 0;
+    let totalCurrentMonthCost = 0;
+    let totalPreviousMonthCost = 0;
+    let totalPreviousYearCost = 0;
+    let totalGrossCurrentMonth = 0;
+    let totalGrossPreviousMonth = 0;
+    let totalGrossPreviousYear = 0;
+    let totalCurrentMonthExtraCosts = 0;
+    let totalPreviousMonthExtraCosts = 0;
+    let totalPreviousYearExtraCosts = 0;
     docTypes.forEach((doc) => {
       const currentMonthDoc = currentMonthSales.data.find(
         (sale) => sale.id === doc.id,
@@ -99,6 +112,15 @@ export class ReportsService {
         previousMonthCount: previousMonthDoc ? previousMonthDoc.count : 0,
         previousYear: previousYearDoc ? previousYearDoc.total : 0,
         previousYearCount: previousYearDoc ? previousYearDoc.count : 0,
+        currentMonthExtraCosts: currentMonthDoc
+          ? currentMonthDoc.extraCosts
+          : 0,
+        previousMonthExtraCosts: previousMonthDoc
+          ? previousMonthDoc.extraCosts
+          : 0,
+        previousYearExtraCosts: previousYearDoc
+          ? previousYearDoc.extraCosts
+          : 0,
       });
 
       totalCurrentMonth += currentMonthDoc ? currentMonthDoc.total : 0;
@@ -107,7 +129,43 @@ export class ReportsService {
       countCurrentMonth += currentMonthDoc ? currentMonthDoc.count : 0;
       countPreviousMonth += previousMonthDoc ? previousMonthDoc.count : 0;
       countPreviousYear += previousYearDoc ? previousYearDoc.count : 0;
+
+      totalCurrentMonthCost += currentMonthDoc ? currentMonthDoc.cost : 0;
+      totalPreviousMonthCost += previousMonthDoc ? previousMonthDoc.cost : 0;
+      totalPreviousYearCost += previousYearDoc ? previousYearDoc.cost : 0;
+
+      totalGrossCurrentMonth += currentMonthDoc ? currentMonthDoc.gross : 0;
+      totalGrossPreviousMonth += previousMonthDoc ? previousMonthDoc.gross : 0;
+      totalGrossPreviousYear += previousYearDoc ? previousYearDoc.gross : 0;
+
+      totalCurrentMonthExtraCosts += currentMonthDoc
+        ? currentMonthDoc.extraCosts
+        : 0;
+      totalPreviousMonthExtraCosts += previousMonthDoc
+        ? previousMonthDoc.extraCosts
+        : 0;
+      totalPreviousYearExtraCosts += previousYearDoc
+        ? previousYearDoc.extraCosts
+        : 0;
     });
+
+    await this.googleLoggingService.log(
+      'Reporte mensual de ventas generado exitosamente',
+      {
+        totalCurrentMonth,
+        totalPreviousMonth,
+        totalPreviousYear,
+        countCurrentMonth,
+        countPreviousMonth,
+        countPreviousYear,
+        totalCurrentMonthExtraCosts,
+        totalPreviousMonthExtraCosts,
+        totalPreviousYearExtraCosts,
+      },
+      'INFO',
+      'getMonthlySales',
+      'reports',
+    );
 
     return {
       serverResponseCode: 200,
@@ -120,6 +178,15 @@ export class ReportsService {
         countCurrentMonth,
         countPreviousMonth,
         countPreviousYear,
+        totalCurrentMonthCost,
+        totalPreviousMonthCost,
+        totalPreviousYearCost,
+        totalGrossCurrentMonth,
+        totalGrossPreviousMonth,
+        totalGrossPreviousYear,
+        totalCurrentMonthExtraCosts,
+        totalPreviousMonthExtraCosts,
+        totalPreviousYearExtraCosts,
       },
     };
   }
@@ -136,11 +203,22 @@ export class ReportsService {
       where: {
         fecha: Between(initialDate, finalDate),
       },
-      relations: ['tipo_documento'],
+      relations: [
+        'tipo_documento',
+        'sales_extra_cost_details',
+        'sales_extra_cost_details.costo_extra',
+      ],
     });
 
     const docTypes = [];
     sales.forEach((sale) => {
+      // Calculate extra costs for this sale
+      const extraCostsTotal =
+        sale.sales_extra_cost_details?.reduce(
+          (sum, detail) => sum + detail.monto,
+          0,
+        ) || 0;
+
       // If the document type is not in the object, add it
       const docExist = docTypes.find(
         (doc) => doc.id === sale.tipo_documento.id,
@@ -151,13 +229,35 @@ export class ReportsService {
           name: sale.tipo_documento.tipo,
           total: sale.monto_neto + sale.monto_imp,
           count: 1,
+          cost: sale.costo_neto + sale.costo_imp,
+          gross:
+            sale.monto_neto +
+            sale.monto_imp -
+            (sale.costo_neto + sale.costo_imp) -
+            extraCostsTotal,
+          extraCosts: extraCostsTotal,
         });
       } else {
         // If the document type is already in the object, sum the total amount
         docExist.total += sale.monto_neto + sale.monto_imp;
         docExist.count += 1;
+        docExist.cost += sale.costo_neto + sale.costo_imp;
+        docExist.gross +=
+          sale.monto_neto +
+          sale.monto_imp -
+          (sale.costo_neto + sale.costo_imp) -
+          extraCostsTotal;
+        docExist.extraCosts += extraCostsTotal;
       }
     });
+
+    await this.googleLoggingService.log(
+      'Datos de ventas mensuales procesados',
+      { month, year, salesCount: sales.length, docTypesCount: docTypes.length },
+      'INFO',
+      'getMonthlySalesData',
+      'reports',
+    );
 
     return {
       serverResponseCode: 200,
@@ -189,6 +289,15 @@ export class ReportsService {
         },
       });
     }
+
+    await this.googleLoggingService.log(
+      'Tipos de datos de reporte obtenidos',
+      { activo, count: reportDataTypes.length },
+      'INFO',
+      'getReportDataTypes',
+      'reports',
+    );
+
     return {
       serverResponseCode: 200,
       serverResponseMessage: 'Tipos de datos de reporte obtenidos.',
@@ -252,6 +361,14 @@ export class ReportsService {
 
     await this.reportDataTypeRepository.save(reportDataType);
 
+    await this.googleLoggingService.log(
+      'Tipo de dato de reporte actualizado exitosamente',
+      { id, reportDataTypeId: reportDataType.id },
+      'INFO',
+      'updateReportDataType',
+      'reports',
+    );
+
     //update the report data type order
 
     return {
@@ -299,6 +416,14 @@ export class ReportsService {
       await this.reportDataTypeRepository.save(reportDataTypes[i]);
     }
 
+    await this.googleLoggingService.log(
+      'Tipo de dato de reporte creado exitosamente',
+      { reportDataTypeId: reportDataType.id, dato: reportDataType.dato },
+      'INFO',
+      'createReportDataType',
+      'reports',
+    );
+
     return {
       serverResponseCode: 201,
       serverResponseMessage: 'Tipo de dato de reporte creado.',
@@ -319,6 +444,14 @@ export class ReportsService {
       },
       relations: ['reportDataType'],
     });
+
+    await this.googleLoggingService.log(
+      'Datos de reporte obtenidos exitosamente',
+      { month, year, count: reportData.length },
+      'INFO',
+      'getReportData',
+      'reports',
+    );
 
     return {
       serverResponseCode: 200,
@@ -358,6 +491,14 @@ export class ReportsService {
       reportData.createdAt = new Date();
       await this.reportDataRepository.save(reportData);
     }
+
+    await this.googleLoggingService.log(
+      'Datos de reporte insertados exitosamente',
+      { mes: data.mes, año: data.año, dataCount: data.data.length },
+      'INFO',
+      'insertReportData',
+      'reports',
+    );
 
     return {
       serverResponseCode: 201,

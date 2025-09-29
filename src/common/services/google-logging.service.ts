@@ -30,9 +30,17 @@ export class GoogleLoggingService {
     );
 
     try {
-      //await log.write(entry);
-      console.log(`Log enviado a Google Cloud: ${message}`);
-      console.log('Datos:', data);
+      // Solo enviar a Google Cloud si no estamos en desarrollo
+      if (process.env.ENV !== 'dev') {
+        await log.write(entry);
+        console.log(`Log enviado a Google Cloud: ${message}`);
+      } else {
+        // En desarrollo, solo mostrar en consola
+        console.log(`[${severity}] [${service}] [${method}]: ${message}`);
+        if (data) {
+          console.log('Datos:', data);
+        }
+      }
     } catch (error) {
       console.error('Error al enviar log a Google Cloud:', error);
     }
