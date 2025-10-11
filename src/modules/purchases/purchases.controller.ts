@@ -12,6 +12,7 @@ import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { PurchasesService } from './purchases.service';
 import { GetPurchasesDto } from './dto/get-purchases.dto';
 import { UpdatePurchaseDto } from './dto/update-purchase.dto';
+import { CreatePurchaseDto } from './dto/create-purchase.dto';
 
 @Controller('purchases')
 @ApiTags('Purchases')
@@ -55,5 +56,12 @@ export class PurchasesController {
   @UseGuards(JwtAuthGuard)
   async editPurchase(@Param('id') id: number, @Body() t: UpdatePurchaseDto) {
     return await this.purchasesService.editPurchase(id, t);
+  }
+
+  @Post('create')
+  @ApiBearerAuth('jwt')
+  @UseGuards(JwtAuthGuard)
+  async createPurchase(@Body() createPurchaseDto: CreatePurchaseDto) {
+    return await this.purchasesService.createPurchase(createPurchaseDto);
   }
 }

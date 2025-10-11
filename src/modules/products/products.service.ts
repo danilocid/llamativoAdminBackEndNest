@@ -264,9 +264,49 @@ export class ProductsService {
   }
 
   async createNotificationNoPublicado() {
-    // get all products with publicado false and stock greater than 0
-    // pick 1 product at random, create a notification to set it to publicado
-    // OBVIAR productos deprecados
+    // Primero buscar productos no publicados con stock mayor a 0 y no deprecados
+    const unpublishedProducts = await this.productsRepository.find({
+      where: {
+        stock: Not(0),
+        deprecado: false,
+        publicado: false,
+      },
+    });
+
+    // Si hay productos no publicados, crear notificación para uno al azar
+    if (unpublishedProducts.length > 0) {
+      await this.setProductsAsActive(unpublishedProducts);
+
+      const randomProduct =
+        unpublishedProducts[
+          Math.floor(Math.random() * unpublishedProducts.length)
+        ];
+
+      const notification = new Notification();
+      notification.title = 'Producto no publicado';
+      notification.description = `El producto ${randomProduct.descripcion} (${randomProduct.id}) no está publicado.`;
+      notification.readed = false;
+      notification.url = `/articulos/editar/${randomProduct.id}`;
+
+      await this.notificationRepository.save(notification);
+
+      await this.googleLoggingService.log(
+        'Notificación creada para producto no publicado',
+        { productId: randomProduct.id },
+        'INFO',
+        'createNotificationNoPublicado',
+        'products',
+      );
+
+      return {
+        serverResponseCode: 200,
+        serverResponseMessage:
+          'Notificación creada para producto no publicado.',
+        data: null,
+      };
+    }
+
+    // Si no hay productos no publicados, buscar productos con otras propiedades faltantes
     const products = await this.productsRepository.find({
       where: { stock: Not(0), deprecado: false },
     });
@@ -285,11 +325,12 @@ export class ProductsService {
         data: null,
       };
     }
+
     await this.setProductsAsActive(products);
-    // Filtramos los productos con problemas y determinamos la primera propiedad faltante
+
+    // Filtramos los productos con problemas (excluyendo publicado ya que se verificó antes)
     const productsWithIssues = products
       .map((product) => {
-        if (!product.publicado) return { product, missingField: 'publicado' };
         if (!product.enlace_ml) return { product, missingField: 'enlace_ml' };
         if (!product.id_ml) return { product, missingField: 'id_ml' };
         if (!product.id_variante_ml)

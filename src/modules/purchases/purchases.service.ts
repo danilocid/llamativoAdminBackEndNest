@@ -8,8 +8,9 @@ import axios from 'axios';
 import { PurchaseApiResponse } from './dto/purchases-api.interface';
 import { DocumentType } from '../common/entities/document_type.entity';
 import { UpdatePurchaseDto } from './dto/update-purchase.dto';
+import { CreatePurchaseDto } from './dto/create-purchase.dto';
 import { GoogleLoggingService } from 'src/common/services/google-logging.service';
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 
 @Injectable()
 export class PurchasesService {
@@ -112,6 +113,7 @@ export class PurchasesService {
         'createPurchaseFromApi',
         'purchases',
       );
+      console.log(error.response.data);
       return;
     }
     if (!responseData) {
@@ -409,5 +411,132 @@ export class PurchasesService {
         },
       },
     };
+  }
+
+  async createPurchase(dto: CreatePurchaseDto) {
+    try {
+      // Validar que el proveedor existe
+      const proveedor = await this.entitiesRepository.findOne({
+        where: { rut: dto.proveedor },
+      });
+
+      if (!proveedor) {
+        await this.googleLoggingService.log(
+          'Proveedor no encontrado para crear compra',
+          { rutProveedor: dto.proveedor },
+          'ERROR',
+          'createPurchase',
+          'purchases',
+        );
+        throw new BadRequestException('Proveedor no encontrado');
+      }
+
+      // Validar que el tipo de documento existe
+      const tipoDocumento = await this.documentTypeRepository.findOne({
+        where: { id: dto.tipo_documento },
+      });
+
+      if (!tipoDocumento) {
+        await this.googleLoggingService.log(
+          'Tipo de documento no encontrado para crear compra',
+          { tipoDocumentoId: dto.tipo_documento },
+          'ERROR',
+          'createPurchase',
+          'purchases',
+        );
+        throw new BadRequestException('Tipo de documento no encontrado');
+      }
+
+      // Validar que el tipo de compra existe
+      const tipoCompra = await this.purchaseTypeRepository.findOne({
+        where: { id: dto.tipo_compra },
+      });
+
+      if (!tipoCompra) {
+        await this.googleLoggingService.log(
+          'Tipo de compra no encontrado para crear compra',
+          { tipoCompraId: dto.tipo_compra },
+          'ERROR',
+          'createPurchase',
+          'purchases',
+        );
+        throw new BadRequestException('Tipo de compra no encontrado');
+      }
+
+      // Verificar que no existe una compra con el mismo documento, tipo de documento y proveedor
+      const existingPurchase = await this.purchaseRepository.findOne({
+        where: {
+          documento: dto.documento,
+          tipo_documento: tipoDocumento,
+          proveedor: proveedor,
+        },
+      });
+
+      if (existingPurchase) {
+        await this.googleLoggingService.log(
+          'Ya existe una compra con el mismo documento, tipo y proveedor',
+          {
+            documento: dto.documento,
+            tipoDocumento: dto.tipo_documento,
+            proveedor: dto.proveedor,
+          },
+          'WARN',
+          'createPurchase',
+          'purchases',
+        );
+        throw new BadRequestException(
+          'Ya existe una compra con el mismo número de documento, tipo de documento y proveedor',
+        );
+      }
+
+      // Crear la nueva compra
+      const newPurchase = new Purchases();
+      newPurchase.proveedor = proveedor;
+      newPurchase.tipo_documento = tipoDocumento;
+      newPurchase.documento = dto.documento;
+      newPurchase.fecha_documento = new Date(dto.fecha_documento);
+      newPurchase.monto_neto_documento = dto.monto_neto_documento;
+      newPurchase.monto_imp_documento = dto.monto_imp_documento;
+      newPurchase.costo_neto_documento = dto.costo_neto_documento;
+      newPurchase.costo_imp_documento = dto.costo_imp_documento;
+      newPurchase.tipo_compra = tipoCompra;
+      newPurchase.observaciones = dto.observaciones || '';
+
+      const savedPurchase = await this.purchaseRepository.save(newPurchase);
+
+      await this.googleLoggingService.log(
+        'Compra creada exitosamente',
+        {
+          purchaseId: savedPurchase.id,
+          documento: savedPurchase.documento,
+          proveedor: dto.proveedor,
+          montoTotal: dto.monto_neto_documento + dto.monto_imp_documento,
+          costoTotal: dto.costo_neto_documento + dto.costo_imp_documento,
+        },
+        'INFO',
+        'createPurchase',
+        'purchases',
+      );
+
+      return {
+        serverResponseCode: 201,
+        serverResponseMessage: 'Compra creada exitosamente',
+        data: savedPurchase,
+      };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
+      await this.googleLoggingService.log(
+        'Error inesperado al crear compra',
+        { error: error.message, dto },
+        'ERROR',
+        'createPurchase',
+        'purchases',
+      );
+
+      throw new BadRequestException('Error al crear la compra');
+    }
   }
 }
