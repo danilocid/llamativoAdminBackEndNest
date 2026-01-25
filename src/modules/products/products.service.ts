@@ -185,7 +185,13 @@ export class ProductsService {
     if (t.enlace_ps === '' || t.enlace_ps === undefined) t.enlace_ps = null;
     if (t.id_ps === '' || t.id_ps === undefined) t.id_ps = null;
 
-    await this.productsRepository.update(t.id, t);
+    // if cod_barras is empty, generate one based on the product id
+    if (!t.cod_barras || t.cod_barras === '') {
+      const generatedCodBarras = (t.id + 50000).toString();
+      await this.productsRepository.update(t.id, { ...t, cod_barras: generatedCodBarras });
+    } else {
+      await this.productsRepository.update(t.id, t);
+    }
 
     await this.googleLoggingService.log(
       'Producto actualizado exitosamente',

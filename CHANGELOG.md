@@ -5,6 +5,68 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.3.0] - 2026-01-25
+
+### Agregado
+
+- Suite completa de pruebas unitarias para el servicio de productos (23 tests)
+- Configuración de `moduleNameMapper` en Jest para resolver paths de TypeScript
+- Validación en `UpdateProductDto` para generar código de barras automáticamente cuando está vacío
+
+### Modificado
+
+- **Actualización mayor a NestJS v11** (desde v10)
+  - @nestjs/common, core, platform-express, testing: 10.4.4 → 11.1.12
+  - @nestjs/config: 3.2.3 → 4.0.2
+  - @nestjs/jwt: 10.2.0 → 11.0.2
+  - @nestjs/passport: 10.0.3 → 11.0.5
+  - @nestjs/swagger: 7.4.2 → 11.2.5
+  - @nestjs/typeorm: 10.0.2 → 11.0.0
+  - @nestjs/cli, schematics: v10 → v11
+
+- Actualización completa de dependencias del proyecto:
+  - axios: 1.7.7 → 1.13.2
+  - class-validator: 0.14.1 → 0.14.3
+  - typeorm: 0.3.20 → 0.3.28
+  - mysql2: 3.11.3 → 3.16.1
+  - prettier: 3.3.3 → 3.8.1
+  - typescript: 5.6.2 → 5.9.3
+  - eslint: 9.12.0 → 9.39.2
+  - @typescript-eslint/eslint-plugin, parser: 8.8.0 → 8.53.1
+  - eslint-config-prettier: 9.1.0 → 10.1.8
+  - @types/express: 4.17.21 → 5.0.6
+  - @types/node: 22.7.4 → 22.19.7
+  - Y más actualizaciones menores
+
+- Generación automática de código de barras cuando está vacío (ID + 50000) en método `updateProduct`
+
+### Mejorado
+
+- Reducción de vulnerabilidades de seguridad de 10 a 3 (todas moderadas)
+- Testing con cobertura completa del servicio de productos
+- Compatibilidad con las últimas versiones de Node.js
+- Performance general con dependencias actualizadas
+
+### Corregido
+
+- Configuración de Jest para resolver correctamente los imports con alias `src/`
+- Mocks en pruebas unitarias para query builders de TypeORM
+
+### Técnico
+
+- Implementación de mocks completos para repositorios y servicios en tests
+- Configuración mejorada de Jest con mapeo de módulos TypeScript
+- Migración exitosa a NestJS 11 sin breaking changes
+- Todas las pruebas unitarias pasando (23/23)
+- Build exitoso con las nuevas versiones
+
+### Seguridad
+
+- Reducción significativa de vulnerabilidades: de 10 a 3 vulnerabilidades moderadas
+- Las 3 restantes son de lodash (dependencia transitiva de @nestjs/config y @nestjs/swagger)
+- Actualización de paquetes con vulnerabilidades conocidas
+- Mejoras generales de seguridad con dependencias actualizadas
+
 ## [1.2.2] - 2025-08-16
 
 ### Modificado
