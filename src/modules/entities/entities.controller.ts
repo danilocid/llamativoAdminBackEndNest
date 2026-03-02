@@ -29,6 +29,13 @@ export class EntitiesController {
   // get a entity by rut
 
   // get all regions
+  @Get('/providers')
+  @ApiBearerAuth('jwt')
+  @UseGuards(JwtAuthGuard)
+  async getProviders() {
+    return await this.entitiesService.getProviders();
+  }
+
   @Get('/regions')
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)

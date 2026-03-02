@@ -66,6 +66,20 @@ export class EntitiesService {
     };
   }
 
+  // get all providers (type P and B) for dropdowns
+  async getProviders() {
+    const providers = await this.entitiesRepository.find({
+      where: [{ tipo: 'P' }, { tipo: 'B' }],
+      order: { nombre: 'ASC' },
+      select: ['rut', 'nombre'],
+    });
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: 'Proveedores obtenidos.',
+      data: providers,
+    };
+  }
+
   //get all regions
   async getAllRegions() {
     const regions = await this.regionRepository.find();

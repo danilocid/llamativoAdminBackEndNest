@@ -5,6 +5,18 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.3.1] - 2026-03-01
+
+### Agregado
+
+- Nuevo endpoint `GET /entities/providers` para obtener listado de proveedores (tipos P y B) para dropdowns
+- Método `getProviders()` en `EntitiesService` con selección optimizada de campos (`rut`, `nombre`) y ordenamiento alfabético
+
+### Técnico
+
+- Endpoint protegido con autenticación JWT (`@UseGuards(JwtAuthGuard)`)
+- Consulta optimizada con filtro por tipo de entidad y selección específica de columnas
+
 ## [1.3.0] - 2026-01-25
 
 ### Agregado
@@ -12,6 +24,11 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 - Suite completa de pruebas unitarias para el servicio de productos (23 tests)
 - Configuración de `moduleNameMapper` en Jest para resolver paths de TypeScript
 - Validación en `UpdateProductDto` para generar código de barras automáticamente cuando está vacío
+- Endpoint `POST /purchases/create` para creación manual de compras con validaciones completas
+- DTO `CreatePurchaseDto` con validaciones de proveedor, tipo de documento, montos y observaciones
+- Soporte para productos deprecados en la gestión de productos y ventas
+- Campo `deprecado` en la entidad de productos y DTOs correspondientes
+- Integración de Google Cloud Logging en `PurchasesService` y `ReportsService`
 
 ### Modificado
 
@@ -39,6 +56,8 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
   - Y más actualizaciones menores
 
 - Generación automática de código de barras cuando está vacío (ID + 50000) en método `updateProduct`
+- Lógica de notificaciones de productos no publicados para excluir productos deprecados
+- `GoogleLoggingService` ajustado para enviar logs a Google Cloud solo en entornos no-dev
 
 ### Mejorado
 
@@ -46,6 +65,8 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 - Testing con cobertura completa del servicio de productos
 - Compatibilidad con las últimas versiones de Node.js
 - Performance general con dependencias actualizadas
+- Validaciones robustas en creación de compras (proveedor, tipo documento, tipo compra, duplicados)
+- Trazabilidad completa con Google Cloud Logging en operaciones de compras y reportes
 
 ### Corregido
 
@@ -59,6 +80,8 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 - Migración exitosa a NestJS 11 sin breaking changes
 - Todas las pruebas unitarias pasando (23/23)
 - Build exitoso con las nuevas versiones
+- `GoogleLoggingService` registrado como provider en `PurchasesModule` y `ReportsModule`
+- Validación de duplicados en compras por documento, tipo de documento y proveedor
 
 ### Seguridad
 
