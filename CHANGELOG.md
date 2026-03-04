@@ -5,6 +5,21 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.3.2] - 2026-03-03
+
+### Agregado
+
+- Suite de pruebas unitarias para `AuthService` (4 tests)
+  - Validación de inicio de sesión con usuario inexistente
+  - Validación de contraseña incorrecta
+  - Generación exitosa de token JWT
+  - Verificación de existencia del servicio
+
+### Mejorado
+
+- Cobertura de tests incrementada con 4 tests adicionales
+- Total de tests en el proyecto: 27 (23 ProductsService + 4 AuthService)
+
 ## [1.3.1] - 2026-03-01
 
 ### Agregado

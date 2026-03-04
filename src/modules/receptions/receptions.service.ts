@@ -1,7 +1,7 @@
 import { InjectRepository } from '@nestjs/typeorm';
 import { PageDto } from 'src/common/dto/page.dto';
 import { Reception } from './entities/reception.entity';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { ReceptionDetails } from './entities/reception-details.entity';
 import { CreateReceptionDto } from './dto/create-reception.dto';
 import { Entities } from '../entities/entities/entities.entity';
@@ -136,6 +136,44 @@ export class ReceptionsService {
     }
     return {
       data: 'Reception created',
+    };
+  }
+
+  async getReceptionsByMonth(month: number, year: number) {
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 1);
+
+    const receptions = await this.receptionRepository.find({
+      where: {
+        fecha: Between(startDate, endDate),
+      },
+      order: { fecha: 'ASC' },
+      relations: ['proveedor', 'tipo_documento'],
+    });
+
+    let totalCostoNeto = 0;
+    let totalCostoImp = 0;
+    let totalUnidades = 0;
+
+    receptions.forEach((reception) => {
+      totalCostoNeto += reception.costo_neto;
+      totalCostoImp += reception.costo_imp;
+      totalUnidades += reception.unidades;
+    });
+
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: 'Recepciones obtenidas exitosamente',
+      data: {
+        receptions,
+        totals: {
+          count: receptions.length,
+          costoNeto: totalCostoNeto,
+          costoImp: totalCostoImp,
+          costoTotal: totalCostoNeto + totalCostoImp,
+          unidades: totalUnidades,
+        },
+      },
     };
   }
 }

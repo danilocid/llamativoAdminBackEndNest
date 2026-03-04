@@ -32,6 +32,16 @@ export class ReceptionsController {
     return await this.receptionsService.createReception(t);
   }
 
+  @Get('report/:month/:year')
+  @ApiBearerAuth('jwt')
+  @UseGuards(JwtAuthGuard)
+  async getReceptionsByMonth(
+    @Param('month') month: number,
+    @Param('year') year: number,
+  ) {
+    return await this.receptionsService.getReceptionsByMonth(month, year);
+  }
+
   // get reception by id
   @Get(':id')
   @ApiBearerAuth('jwt')
