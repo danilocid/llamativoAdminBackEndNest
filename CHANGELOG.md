@@ -15,6 +15,12 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
   - Generación exitosa de token JWT
   - Verificación de existencia del servicio
 
+### Corregido
+
+- Error "Empty criteria(s) are not allowed for the delete method" al eliminar todas las notificaciones
+  - Reemplazado `delete({})` por `clear()` en `NotificationsService.deleteAllNotifications()`
+  - Ahora el endpoint `/products/inactive?clearNotifications=true` funciona correctamente
+
 ### Mejorado
 
 - Cobertura de tests incrementada con 4 tests adicionales

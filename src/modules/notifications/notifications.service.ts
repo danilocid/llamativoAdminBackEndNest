@@ -79,13 +79,13 @@ export class NotificationsService {
 
   async deleteAllNotifications() {
     console.warn('Eliminando todas las notificaciones');
-    const notificationsDeleted = await this.notificationRepository.delete({});
-    console.warn('Notificaciones eliminadas:', notificationsDeleted);
+    await this.notificationRepository.clear();
+    console.warn('Todas las notificaciones han sido eliminadas');
 
     return {
       serverResponseCode: 200,
       serverResponseMessage: 'Todas las notificaciones han sido eliminadas.',
-      data: notificationsDeleted,
+      data: null,
     };
   }
 }
