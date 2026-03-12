@@ -5,6 +5,30 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.3.3] - 2026-03-12
+
+### Mejorado
+
+- Sincronizacion de productos sin variante en Mercado Libre ahora incluye busqueda por SKU en `validateAndSyncProduct`
+  - Cuando un producto no existe en la base de datos y no es variante, se busca el campo `SELLER_SKU` en `productDetails.data.attributes`
+  - Si se encuentra coincidencia por `cod_barras`, se actualiza `id_ml`, `enlace_ml` y `publicado` automaticamente
+  - Logs diferenciados para el flujo variante (`Buscando producto por SKU (variant)`) y no variante (`Buscando producto por SKU (no variant)`)
+  - Logs del servicio sin acentos ni caracteres especiales en todos los mensajes
+
+### Agregado
+
+- Suite de pruebas unitarias para `ProductSyncService` (12 tests)
+  - Producto encontrado en BD: retorna directamente por `id_variante_ml` o `id_ml`
+  - Caso variante sin producto en BD: busca por SKU en `variation.attributes`, actualiza y retorna
+  - Caso variante: retorna `null` si SKU no tiene coincidencia, si no hay `attributes`, o si no hay `SELLER_SKU`
+  - Caso no variante sin producto en BD: busca por SKU en `productDetails.data.attributes`, actualiza `id_ml` y `enlace_ml` sin tocar `id_variante_ml`
+  - Caso no variante: retorna `null` si SKU no tiene coincidencia, si no hay `attributes`, o si no hay `SELLER_SKU`
+
+### Tecnico
+
+- Total de tests en el proyecto: 39 (23 ProductsService + 4 AuthService + 12 ProductSyncService)
+- Todos los tests pasan: 39/39 en 3 suites
+
 ## [1.3.2] - 2026-03-03
 
 ### Agregado

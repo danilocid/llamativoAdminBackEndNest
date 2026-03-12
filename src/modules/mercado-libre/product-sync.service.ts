@@ -30,13 +30,13 @@ export class ProductSyncService {
 
     if (!productFromDB) {
       // Si no existe el producto, intentar buscarlo por SKU para actualizarlo
-      if (variation.attributes) {
+      if (isVariant && variation.attributes) {
         const sku = variation.attributes.find(
           (attribute) => attribute.id === 'SELLER_SKU',
         )?.value_name;
 
         await this.googleLoggingService.log(
-          'Buscando producto por SKU',
+          'Buscando producto por SKU (variant)',
           { sku, variationId: variation.id },
           'INFO',
           'validateAndSyncProduct',
@@ -58,8 +58,45 @@ export class ProductSyncService {
             await this.productsRepository.save(productBySku);
 
             await this.googleLoggingService.log(
-              'Producto encontrado por SKU y actualizado',
+              'Producto encontrado por SKU y actualizado (variant)',
               { productId: productBySku.id, sku, variationId: variation.id },
+              'INFO',
+              'validateAndSyncProduct',
+              'product-sync',
+            );
+
+            return productBySku;
+          }
+        }
+      } else if (!isVariant && productDetails.data.attributes) {
+        const sku = productDetails.data.attributes.find(
+          (attribute) => attribute.id === 'SELLER_SKU',
+        )?.value_name;
+
+        await this.googleLoggingService.log(
+          'Buscando producto por SKU (no variant)',
+          { sku, productId: productDetails.data.id },
+          'INFO',
+          'validateAndSyncProduct',
+          'product-sync',
+        );
+
+        if (sku) {
+          const productBySku = await this.productsRepository.findOne({
+            where: { cod_barras: sku },
+          });
+
+          if (productBySku) {
+            // Actualizar el producto con los detalles de Mercado Libre
+            productBySku.id_ml = productDetails.data.id;
+            productBySku.enlace_ml = productDetails.data.permalink;
+            productBySku.publicado = true;
+
+            await this.productsRepository.save(productBySku);
+
+            await this.googleLoggingService.log(
+              'Producto encontrado por SKU y actualizado (no variant)',
+              { productId: productBySku.id, sku, mlId: productDetails.data.id },
               'INFO',
               'validateAndSyncProduct',
               'product-sync',
@@ -201,7 +238,7 @@ export class ProductSyncService {
       });
 
       await this.googleLoggingService.log(
-        'Notificación creada',
+        'Notificacion creada',
         { notificationId: notification.id, title },
         'INFO',
         'createProductNotification',
@@ -211,7 +248,7 @@ export class ProductSyncService {
       return notification;
     } catch (error) {
       await this.googleLoggingService.log(
-        'Error al crear notificación',
+        'Error al crear notificacion',
         { error: error.message, title, description },
         'ERROR',
         'createProductNotification',

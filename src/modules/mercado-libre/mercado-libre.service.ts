@@ -43,7 +43,7 @@ export class MercadoLibreService {
           delete productDetails.data.pictures;
           delete productDetails.data.shipping;
           delete productDetails.data.seller_address;
-          delete productDetails.data.attributes;
+          //productDetails.data.attributes;
 
           if (productDetails.data.variations.length > 0) {
             for (let variation of productDetails.data.variations) {
