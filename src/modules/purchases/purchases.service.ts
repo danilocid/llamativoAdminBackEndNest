@@ -389,7 +389,7 @@ export class PurchasesService {
       const notifications = [];
       for (const purchase of result.purchases) {
         const notification = this.notificationRepository.create({
-          title: '✓ Nueva compra sincronizada',
+          title: 'Nueva compra sincronizada',
           description: `Factura N° ${purchase.documento} - ${purchase.proveedor?.nombre || 'Proveedor desconocido'} - $${(purchase.monto_neto_documento + purchase.monto_imp_documento).toLocaleString('es-CL')}`,
           url: `/compras`,
         });
@@ -433,7 +433,7 @@ export class PurchasesService {
 
       // Crear notificación de error
       const notification = this.notificationRepository.create({
-        title: '❌ Error en sincronización de compras',
+        title: 'Error en sincronización de compras',
         description: `Error al sincronizar compras del mes ${month}/${year}: ${error.message}`,
         url: '/compras',
       });

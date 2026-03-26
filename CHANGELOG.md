@@ -18,10 +18,10 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
   - Ideal para ejecución automática mediante cron jobs o webhooks
 - **Sistema de notificaciones automáticas para compras**
   - Integración del repositorio de notificaciones en `PurchasesModule`
-  - Notificaciones con emojis y formato amigable:
-    - ✓ Nueva compra sincronizada
-    - ⚠️ Sin compras nuevas
-    - ❌ Error en sincronización
+  - Notificaciones con formato amigable:
+    - Nueva compra sincronizada
+    - Sin compras nuevas
+    - Error en sincronización
   - Enlaces directos a la sección de compras en cada notificación
 
 ### Modificado

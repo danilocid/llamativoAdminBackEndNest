@@ -45,17 +45,17 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 
 ## Características Principales
 
-- 🔐 Autenticación JWT con guards de seguridad
-- 📦 Gestión completa de productos e inventario
-- 🛒 Módulos de ventas, compras y recepciones
-- 📊 Sistema de reportes y estadísticas
-- 🏪 Integración con Mercado Libre (OAuth2, sincronización de productos)
-- 📝 Logging centralizado con Google Cloud Platform
-- 🔔 Sistema de notificaciones
-- 🔄 Sincronización automática de compras del SII con notificaciones
-- ✅ Suite completa de pruebas unitarias (63 tests)
-- 🚀 Soporte para productos deprecados
-- 📈 Resúmenes de inventario con cálculos de rentabilidad
+- Autenticación JWT con guards de seguridad
+- Gestión completa de productos e inventario
+- Módulos de ventas, compras y recepciones
+- Sistema de reportes y estadísticas
+- Integración con Mercado Libre (OAuth2, sincronización de productos)
+- Logging centralizado con Google Cloud Platform
+- Sistema de notificaciones
+- Sincronización automática de compras del SII con notificaciones
+- Suite completa de pruebas unitarias (63 tests)
+- Soporte para productos deprecados
+- Resúmenes de inventario con cálculos de rentabilidad
 
 ## Requisitos Previos
 
