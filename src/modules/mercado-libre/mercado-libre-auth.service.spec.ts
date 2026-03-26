@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { HttpService } from '@nestjs/axios';
-import { of, throwError } from 'rxjs';
+import { of } from 'rxjs';
 import { MercadoLibreAuthService } from './mercado-libre-auth.service';
 import { MercadoLibreToken } from './entities/mercado-libre.entity';
 import { GoogleLoggingService } from '../../common/services/google-logging.service';

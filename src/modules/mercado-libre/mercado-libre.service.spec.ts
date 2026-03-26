@@ -16,7 +16,7 @@ describe('MercadoLibreService', () => {
   let httpService: HttpService;
   let mercadoLibreAuthService: MercadoLibreAuthService;
   let productSyncService: ProductSyncService;
-  let productsRepository: Repository<Products>;
+  let _productsRepository: Repository<Products>;
   let notificationRepository: Repository<Notification>;
   let googleLoggingService: GoogleLoggingService;
 
@@ -86,7 +86,7 @@ describe('MercadoLibreService', () => {
       MercadoLibreAuthService,
     );
     productSyncService = module.get<ProductSyncService>(ProductSyncService);
-    productsRepository = module.get<Repository<Products>>(
+    _productsRepository = module.get<Repository<Products>>(
       getRepositoryToken(Products),
     );
     notificationRepository = module.get<Repository<Notification>>(
@@ -297,7 +297,7 @@ describe('MercadoLibreService', () => {
       );
       mockProductSyncService.validateStockAndPrice.mockResolvedValue(undefined);
 
-      const result = await service.listProducts();
+      const _result = await service.listProducts();
 
       expect(productSyncService.validateAndSyncProduct).toHaveBeenCalledTimes(
         2,

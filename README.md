@@ -28,7 +28,7 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 
 ## Versión Actual
 
-**v1.4.0** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
+**v1.5.0** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
 
 ## Tecnologías
 
@@ -52,6 +52,7 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 - 🏪 Integración con Mercado Libre (OAuth2, sincronización de productos)
 - 📝 Logging centralizado con Google Cloud Platform
 - 🔔 Sistema de notificaciones
+- 🔄 Sincronización automática de compras del SII con notificaciones
 - ✅ Suite completa de pruebas unitarias (63 tests)
 - 🚀 Soporte para productos deprecados
 - 📈 Resúmenes de inventario con cálculos de rentabilidad
@@ -96,6 +97,11 @@ GOOGLE_CLOUD_PROJECT_ID=tu_proyecto_gcp
 ML_CLIENT_ID=tu_client_id
 ML_CLIENT_SECRET=tu_client_secret
 ML_REDIRECT_URI=tu_redirect_uri
+
+# SII - BaseAPI (Para obtener compras del SII)
+BASE_API_KEY=sk_your_api_key
+SII_RUT=tu_rut_empresa
+SII_PASSWORD=tu_password_sii
 ```
 
 ### Credenciales de Google Cloud

@@ -5,6 +5,42 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.5.0] - 2026-03-25
+
+### Agregado
+
+- **Endpoint de sincronización automática de compras del SII**
+  - Nuevo endpoint `POST /purchases/sync-current-month` sin autenticación
+  - Obtiene automáticamente el mes y año actual (no requiere parámetros)
+  - Crea una notificación por cada compra sincronizada con detalles (N° factura, proveedor, monto)
+  - Crea notificación informativa cuando no hay compras nuevas
+  - Crea notificación de error si falla la sincronización
+  - Ideal para ejecución automática mediante cron jobs o webhooks
+- **Sistema de notificaciones automáticas para compras**
+  - Integración del repositorio de notificaciones en `PurchasesModule`
+  - Notificaciones con emojis y formato amigable:
+    - ✓ Nueva compra sincronizada
+    - ⚠️ Sin compras nuevas
+    - ❌ Error en sincronización
+  - Enlaces directos a la sección de compras en cada notificación
+
+### Modificado
+
+- Método `createPurchaseFromApi()` ahora retorna datos estructurados:
+  - `success`: indicador de éxito
+  - `count`: número de compras creadas
+  - `totalRegistros`: total de registros en la API
+  - `purchases`: array de compras creadas
+- Tracking de compras creadas para generar notificaciones individuales
+- Mejor manejo de errores con notificaciones de respaldo
+
+### Técnico
+
+- Inyección de `notificationRepository` en `PurchasesService`
+- Agregada entidad `Notification` a `PurchasesModule`
+- Total de tests continúa en 63/63 pasando
+- Build y linter sin errores
+
 ## [1.4.0] - 2026-03-25
 
 ### Agregado
@@ -16,8 +52,27 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
   - `product-sync.service.spec.ts` (9 tests): Tests para validación y sincronización de productos con/sin variaciones
 - Configuración `cross-env` para manejo multiplataforma de variables de entorno
 - Migración a ESLint 10 con flat config (`eslint.config.js`)
+- Archivo `.env.example` con todas las variables de entorno necesarias
+- Nueva integración con BaseAPI para obtención de compras del SII
+  - Endpoint: `https://api.baseapi.cl/api/v1/sii/rcv/{year}-{month}/compra`
+  - Autenticación mediante API Key en header `x-api-key`
+  - Formato de respuesta actualizado con nuevas interfaces TypeScript
 
 ### Actualizado
+
+- **API de Compras del SII:**
+  - Migrado de SimpleAPI a BaseAPI para mejor confiabilidad
+  - Método HTTP: POST con body `{ rut, password }`
+  - Mejoras en parseo de fechas (DD/MM/YYYY → Date)
+  - Conversión de strings numéricos a tipos correctos
+  - Mejor manejo de errores y logging detallado
+  - Variables de entorno: `BASE_API_KEY`, `SII_RUT`, `SII_PASSWORD` (reemplazan las anteriores de SimpleAPI)
+
+- **Interfaces de datos:**
+  - Nueva interfaz `BaseApiPurchaseResponse` con estructura completa de respuesta
+  - Nueva interfaz `PurchaseApiData` con campos de la API de BaseAPI
+  - Nueva interfaz `ResumenPorTipo` para totales por tipo de documento
+  - Interfaz anterior `PurchaseApiResponse` marcada como deprecated
 
 - **Dependencias principales:**
   - NestJS: 11.1.12 → 11.1.17

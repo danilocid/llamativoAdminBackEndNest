@@ -40,6 +40,11 @@ export class PurchasesController {
     return await this.purchasesService.getTypes();
   }
 
+  @Post('sync-current-month')
+  async syncCurrentMonthPurchases() {
+    return await this.purchasesService.syncCurrentMonthPurchases();
+  }
+
   @Get('api')
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)

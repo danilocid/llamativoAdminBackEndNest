@@ -7,6 +7,7 @@ import { PurchasesTypes } from './entities/purchases-types.entity';
 import { Purchases } from './entities/purchases.entity';
 import { Entities } from '../entities/entities/entities.entity';
 import { DocumentType } from '../common/entities/document_type.entity';
+import { Notification } from '../notifications/entities/notification.entity';
 import { GoogleLoggingService } from 'src/common/services/google-logging.service';
 
 @Module({
@@ -16,6 +17,7 @@ import { GoogleLoggingService } from 'src/common/services/google-logging.service
       Purchases,
       Entities,
       DocumentType,
+      Notification,
     ]),
   ],
   controllers: [PurchasesController],

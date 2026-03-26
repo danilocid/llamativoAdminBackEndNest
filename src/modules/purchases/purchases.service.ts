@@ -5,8 +5,12 @@ import { Purchases } from './entities/purchases.entity';
 import { Entities } from '../entities/entities/entities.entity';
 import { GetPurchasesDto } from './dto/get-purchases.dto';
 import axios from 'axios';
-import { PurchaseApiResponse } from './dto/purchases-api.interface';
+import {
+  BaseApiPurchaseResponse,
+  PurchaseApiData,
+} from './dto/purchases-api.interface';
 import { DocumentType } from '../common/entities/document_type.entity';
+import { Notification } from '../notifications/entities/notification.entity';
 import { UpdatePurchaseDto } from './dto/update-purchase.dto';
 import { CreatePurchaseDto } from './dto/create-purchase.dto';
 import { GoogleLoggingService } from 'src/common/services/google-logging.service';
@@ -23,6 +27,8 @@ export class PurchasesService {
     private entitiesRepository: Repository<Entities>,
     @InjectRepository(DocumentType)
     private documentTypeRepository: Repository<DocumentType>,
+    @InjectRepository(Notification)
+    private notificationRepository: Repository<Notification>,
     private readonly googleLoggingService: GoogleLoggingService,
   ) {}
 
@@ -78,50 +84,47 @@ export class PurchasesService {
   }
 
   async createPurchaseFromApi(dto: GetPurchasesDto) {
-    const month = dto.month;
+    const month = dto.month.toString().padStart(2, '0');
     const year = dto.year;
-    const url =
-      'https://servicios.simpleapi.cl/api/RCV/compras/' + month + '/' + year;
+    const url = `https://api.baseapi.cl/api/v1/sii/rcv/${year}-${month}/compra`;
 
-    let responseData;
+    let responseData: BaseApiPurchaseResponse;
     // get the data from the API using axios
     try {
       const body = {
-        RutUsuario: process.env.SIMPLE_API_RUT_USUARIO,
-        PasswordSII: process.env.SIMPLE_API_PASS_SII,
-        RutEmpresa: process.env.SIMPLE_API_RUT_EMPRESA,
-        Ambiente: 1,
+        rut: process.env.SII_RUT,
+        password: process.env.SII_PASSWORD,
       };
-      responseData = await axios.post(url, body, {
-        headers: { Authorization: process.env.SIMPLE_API_PASS },
+      const response = await axios.post(url, body, {
+        headers: {
+          'x-api-key': process.env.BASE_API_KEY,
+          'Content-Type': 'application/json',
+        },
       });
+      responseData = response.data;
     } catch (error) {
       await this.googleLoggingService.log(
         'Error al obtener datos de la API',
-        { errorCode: error.code },
+        { errorCode: error.code, errorMessage: error.message },
         'ERROR',
         'createPurchaseFromApi',
         'purchases',
       );
       delete error.request;
-      delete error.response.config;
-      delete error.response.request;
-      await this.googleLoggingService.log(
-        'Error detallado al obtener datos de la API',
-        { error },
-        'ERROR',
-        'createPurchaseFromApi',
-        'purchases',
-      );
-      await this.googleLoggingService.log(
-        'Datos de error de la respuesta de la API',
-        error.response.data,
-        'ERROR',
-        'createPurchaseFromApi',
-        'purchases',
-      );
+      if (error.response) {
+        delete error.response.config;
+        delete error.response.request;
+        await this.googleLoggingService.log(
+          'Datos de error de la respuesta de la API',
+          error.response.data,
+          'ERROR',
+          'createPurchaseFromApi',
+          'purchases',
+        );
+      }
       return;
     }
+
     if (!responseData) {
       await this.googleLoggingService.log(
         'No se obtuvieron datos de la API',
@@ -132,38 +135,60 @@ export class PurchasesService {
       );
       return;
     }
-    if (responseData.data.error) {
+
+    if (!responseData.success) {
       await this.googleLoggingService.log(
         'Error en la respuesta de la API',
-        { apiError: responseData.data.error },
+        { response: responseData },
         'ERROR',
         'createPurchaseFromApi',
         'purchases',
       );
       return;
     }
-    const purchasesFromApi: PurchaseApiResponse[] =
-      responseData.data.compras.detalleCompras;
+
+    const purchasesFromApi: PurchaseApiData[] = responseData.data.datos;
+
+    if (!purchasesFromApi || purchasesFromApi.length === 0) {
+      await this.googleLoggingService.log(
+        'No se encontraron compras en la respuesta de la API',
+        { month, year },
+        'WARN',
+        'createPurchaseFromApi',
+        'purchases',
+      );
+      return;
+    }
 
     let purchasesCount = 0;
+    const createdPurchases: Purchases[] = [];
     for (const purchase of purchasesFromApi) {
+      // Convertir tipo de documento string a número
+      const tipoDTE = parseInt(purchase['Tipo Doc']);
+
       //check if the purchase already exists
       const tipoDocumento = await this.documentTypeRepository.findOne({
-        where: { id: purchase.tipoDTE },
+        where: { id: tipoDTE },
       });
 
       if (!tipoDocumento) {
         await this.googleLoggingService.log(
           'Tipo de documento no encontrado',
-          { tipoDTE: purchase.tipoDTE },
+          { tipoDTE, tipoDocString: purchase['Tipo Doc'] },
           'ERROR',
           'createPurchaseFromApi',
           'purchases',
         );
+        continue;
       }
+
+      // Convertir folio a número
+      const folio = parseInt(purchase.Folio);
+
       const purchaseExists = await this.purchaseRepository.findOne({
-        where: { documento: purchase.folio, tipo_documento: tipoDocumento },
+        where: { documento: folio, tipo_documento: tipoDocumento },
       });
+
       if (purchaseExists) {
         await this.googleLoggingService.log(
           'La compra ya existe',
@@ -177,16 +202,19 @@ export class PurchasesService {
         );
         continue;
       }
+
       const newPurchase = new Purchases();
+
       //validate if the rutProveedor exists as a proveedor
       const entity = await this.entitiesRepository.findOne({
-        where: { rut: purchase.rutProveedor },
+        where: { rut: purchase['RUT Proveedor'] },
       });
+
       if (!entity) {
         // create the entity
         const newEntity = new Entities();
-        newEntity.rut = purchase.rutProveedor;
-        newEntity.nombre = purchase.razonSocial;
+        newEntity.rut = purchase['RUT Proveedor'];
+        newEntity.nombre = purchase['Razon Social'];
         newEntity.comuna = {
           id: 204,
           comuna: 'Quillon',
@@ -217,24 +245,35 @@ export class PurchasesService {
         newPurchase.proveedor = entity;
       }
 
-      // validate if the tipoDTE exists as a tipo_documento
-
       newPurchase.tipo_documento = tipoDocumento;
       newPurchase.tipo_compra = await this.purchaseTypeRepository.findOne({
         where: { tipo_compra: 'Recibido' },
       });
-      newPurchase.documento = purchase.folio;
-      newPurchase.fecha_documento = purchase.fechaEmision;
-      newPurchase.observaciones = purchase.estado;
-      newPurchase.monto_neto_documento =
-        purchase.montoNeto + purchase.montoExento;
-      newPurchase.monto_imp_documento = purchase.montoIvaRecuperable;
-      newPurchase.costo_neto_documento =
-        purchase.montoNeto + purchase.montoExento;
-      newPurchase.costo_imp_documento = purchase.montoIvaRecuperable;
+      newPurchase.documento = folio;
+
+      // Convertir fecha de DD/MM/YYYY a Date
+      const [day, monthStr, yearStr] = purchase['Fecha Docto'].split('/');
+      newPurchase.fecha_documento = new Date(
+        parseInt(yearStr),
+        parseInt(monthStr) - 1,
+        parseInt(day),
+      );
+
+      newPurchase.observaciones = purchase['Tipo Compra'] || '';
+
+      // Convertir strings a números
+      const montoNeto = parseFloat(purchase['Monto Neto']) || 0;
+      const montoExento = parseFloat(purchase['Monto Exento']) || 0;
+      const montoIva = parseFloat(purchase['Monto IVA Recuperable']) || 0;
+
+      newPurchase.monto_neto_documento = montoNeto + montoExento;
+      newPurchase.monto_imp_documento = montoIva;
+      newPurchase.costo_neto_documento = montoNeto + montoExento;
+      newPurchase.costo_imp_documento = montoIva;
 
       try {
-        await this.purchaseRepository.save(newPurchase);
+        const savedPurchase = await this.purchaseRepository.save(newPurchase);
+        createdPurchases.push(savedPurchase);
         await this.googleLoggingService.log(
           'Compra guardada correctamente',
           { documento: newPurchase.documento },
@@ -253,6 +292,7 @@ export class PurchasesService {
         );
       }
     }
+
     if (purchasesCount === 0) {
       await this.googleLoggingService.log(
         'No se crearon compras',
@@ -264,11 +304,146 @@ export class PurchasesService {
     } else {
       await this.googleLoggingService.log(
         'Compras creadas exitosamente',
-        { purchasesCount, month: dto.month, year: dto.year },
+        {
+          purchasesCount,
+          totalRegistros: responseData.data.totalRegistros,
+          month: dto.month,
+          year: dto.year,
+        },
         'INFO',
         'createPurchaseFromApi',
         'purchases',
       );
+    }
+
+    return {
+      success: true,
+      count: purchasesCount,
+      totalRegistros: responseData.data.totalRegistros,
+      purchases: createdPurchases,
+    };
+  }
+
+  async syncCurrentMonthPurchases() {
+    const now = new Date();
+    const month = now.getMonth() + 1; // Los meses en JavaScript van de 0 a 11
+    const year = now.getFullYear();
+
+    await this.googleLoggingService.log(
+      'Iniciando sincronización automática de compras del mes actual',
+      { month, year },
+      'INFO',
+      'syncCurrentMonthPurchases',
+      'purchases',
+    );
+
+    try {
+      const result = await this.createPurchaseFromApi({ month, year });
+
+      if (!result) {
+        // Si hay un error en la API
+        const notification = this.notificationRepository.create({
+          title: 'Error al sincronizar compras',
+          description: `No se pudo conectar con la API del SII para el mes ${month}/${year}`,
+          url: '/compras',
+        });
+        await this.notificationRepository.save(notification);
+
+        return {
+          serverResponseCode: 500,
+          serverResponseMessage: 'Error al conectar con la API',
+          data: null,
+        };
+      }
+
+      if (result.count === 0) {
+        // No se crearon compras
+        const notification = this.notificationRepository.create({
+          title: 'Sin compras nuevas',
+          description: `No se encontraron compras nuevas del SII para el período ${month}/${year}. Total en API: ${result.totalRegistros}`,
+          url: '/compras',
+        });
+        await this.notificationRepository.save(notification);
+
+        await this.googleLoggingService.log(
+          'Sincronización completada sin compras nuevas',
+          { month, year, totalEnApi: result.totalRegistros },
+          'INFO',
+          'syncCurrentMonthPurchases',
+          'purchases',
+        );
+
+        return {
+          serverResponseCode: 200,
+          serverResponseMessage: 'No se encontraron compras nuevas',
+          data: {
+            month,
+            year,
+            purchasesCreated: 0,
+            totalInApi: result.totalRegistros,
+          },
+        };
+      }
+
+      // Crear una notificación por cada compra creada
+      const notifications = [];
+      for (const purchase of result.purchases) {
+        const notification = this.notificationRepository.create({
+          title: '✓ Nueva compra sincronizada',
+          description: `Factura N° ${purchase.documento} - ${purchase.proveedor?.nombre || 'Proveedor desconocido'} - $${(purchase.monto_neto_documento + purchase.monto_imp_documento).toLocaleString('es-CL')}`,
+          url: `/compras`,
+        });
+        notifications.push(notification);
+      }
+
+      await this.notificationRepository.save(notifications);
+
+      await this.googleLoggingService.log(
+        'Sincronización completada exitosamente con notificaciones creadas',
+        {
+          month,
+          year,
+          purchasesCreated: result.count,
+          notificationsCreated: notifications.length,
+        },
+        'INFO',
+        'syncCurrentMonthPurchases',
+        'purchases',
+      );
+
+      return {
+        serverResponseCode: 200,
+        serverResponseMessage: 'Compras sincronizadas exitosamente',
+        data: {
+          month,
+          year,
+          purchasesCreated: result.count,
+          totalInApi: result.totalRegistros,
+          notificationsCreated: notifications.length,
+        },
+      };
+    } catch (error) {
+      await this.googleLoggingService.log(
+        'Error en sincronización automática de compras',
+        { month, year, error: error.message },
+        'ERROR',
+        'syncCurrentMonthPurchases',
+        'purchases',
+      );
+
+      // Crear notificación de error
+      const notification = this.notificationRepository.create({
+        title: '❌ Error en sincronización de compras',
+        description: `Error al sincronizar compras del mes ${month}/${year}: ${error.message}`,
+        url: '/compras',
+      });
+      await this.notificationRepository.save(notification);
+
+      return {
+        serverResponseCode: 500,
+        serverResponseMessage: 'Error al sincronizar compras',
+        data: { error: error.message },
+      };
     }
   }
 
