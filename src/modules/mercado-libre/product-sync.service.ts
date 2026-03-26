@@ -35,14 +35,6 @@ export class ProductSyncService {
           (attribute) => attribute.id === 'SELLER_SKU',
         )?.value_name;
 
-        await this.googleLoggingService.log(
-          'Buscando producto por SKU (variant)',
-          { sku, variationId: variation.id },
-          'INFO',
-          'validateAndSyncProduct',
-          'product-sync',
-        );
-
         if (sku) {
           const productBySku = await this.productsRepository.findOne({
             where: { cod_barras: sku },
@@ -72,14 +64,6 @@ export class ProductSyncService {
         const sku = productDetails.data.attributes.find(
           (attribute) => attribute.id === 'SELLER_SKU',
         )?.value_name;
-
-        await this.googleLoggingService.log(
-          'Buscando producto por SKU (no variant)',
-          { sku, productId: productDetails.data.id },
-          'INFO',
-          'validateAndSyncProduct',
-          'product-sync',
-        );
 
         if (sku) {
           const productBySku = await this.productsRepository.findOne({
@@ -130,13 +114,15 @@ export class ProductSyncService {
     // Validar si el stock en la base de datos es diferente al stock de Mercado Libre
     if (product.stock !== productDetails.available_quantity) {
       await this.googleLoggingService.log(
-        'Diferencia de stock detectada',
+        'Stock diferente detectado',
         {
           productId: product.id,
-          dbStock: product.stock,
-          mlStock: productDetails.available_quantity,
+          descripcion: product.descripcion,
+          stockDB: product.stock,
+          stockML: productDetails.available_quantity,
+          productDetailsFromAPI: productDetails,
         },
-        'INFO',
+        'WARNING',
         'validateStockAndPrice',
         'product-sync',
       );
@@ -159,13 +145,17 @@ export class ProductSyncService {
     const dbPrice = product.venta_neto + product.venta_imp;
     if (dbPrice !== productDetails.price) {
       await this.googleLoggingService.log(
-        'Diferencia de precio detectada',
+        'Precio diferente detectado',
         {
           productId: product.id,
-          dbPrice: dbPrice,
-          mlPrice: productDetails.price,
+          descripcion: product.descripcion,
+          precioDBTotal: dbPrice,
+          precioDBNeto: product.venta_neto,
+          precioDBImp: product.venta_imp,
+          precioML: productDetails.price,
+          productDetailsFromAPI: productDetails,
         },
-        'INFO',
+        'WARNING',
         'validateStockAndPrice',
         'product-sync',
       );
@@ -191,12 +181,13 @@ export class ProductSyncService {
       productDetails.permalink !== undefined
     ) {
       await this.googleLoggingService.log(
-        'Diferencia de enlace detectada',
+        'Enlace al producto diferente, actualizando con el de Mercado Libre',
         {
           productId: product.id,
-          dbLink: product.enlace_ml,
-          mlLink: productDetails.permalink,
-          productDetails: productDetails,
+          descripcion: product.descripcion,
+          oldLink: product.enlace_ml,
+          newLink: productDetails.permalink,
+          productDetailsFromAPI: productDetails,
         },
         'INFO',
         'validateStockAndPrice',
@@ -209,12 +200,9 @@ export class ProductSyncService {
         mlValue: productDetails.permalink,
       });
 
-      // Generar notificación
-      await this.createProductNotification(
-        `Enlace diferente: ${product.descripcion}`,
-        `El enlace al producto ${product.descripcion} en la base de datos es diferente al enlace de Mercado Libre.`,
-        `/articulos/editar/${product.id}`,
-      );
+      // Actualizar el enlace en la base de datos
+      product.enlace_ml = productDetails.permalink;
+      await this.productsRepository.save(product);
     }
 
     return {

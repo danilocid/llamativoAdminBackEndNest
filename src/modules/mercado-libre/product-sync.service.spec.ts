@@ -9,7 +9,7 @@ import { GoogleLoggingService } from 'src/common/services/google-logging.service
 describe('ProductSyncService', () => {
   let service: ProductSyncService;
   let productsRepository: Repository<Products>;
-  let notificationRepository: Repository<Notification>;
+  let _notificationRepository: Repository<Notification>;
 
   const mockProduct: Partial<Products> = {
     id: 1,
@@ -63,7 +63,7 @@ describe('ProductSyncService', () => {
     productsRepository = module.get<Repository<Products>>(
       getRepositoryToken(Products),
     );
-    notificationRepository = module.get<Repository<Notification>>(
+    _notificationRepository = module.get<Repository<Notification>>(
       getRepositoryToken(Notification),
     );
   });

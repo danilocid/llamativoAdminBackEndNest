@@ -129,13 +129,30 @@ export class MercadoLibreAuthService {
   }
 
   getAuthCode(query: GetCodeDto) {
-    console.log(query);
+    this.googleLoggingService.log(
+      'Query recibida',
+      query,
+      'INFO',
+      'getAuthCode',
+      'mercado-libre-auth',
+    );
     if (query.code) {
-      console.log('Código de autorización:', query.code);
+      this.googleLoggingService.log(
+        'Código de autorización',
+        { code: query.code },
+        'INFO',
+        'getAuthCode',
+        'mercado-libre-auth',
+      );
       return { code: query.code };
     } else if (query.error) {
-      console.log('Error:', query.error);
-      console.log('Descripción del error:', query.error_description);
+      this.googleLoggingService.log(
+        'Error en autorización',
+        { error: query.error, description: query.error_description },
+        'ERROR',
+        'getAuthCode',
+        'mercado-libre-auth',
+      );
       return {
         error: query.error,
         error_description: query.error_description,

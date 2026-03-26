@@ -113,7 +113,13 @@ export class PurchasesService {
         'createPurchaseFromApi',
         'purchases',
       );
-      console.log(error.response.data);
+      await this.googleLoggingService.log(
+        'Datos de error de la respuesta de la API',
+        error.response.data,
+        'ERROR',
+        'createPurchaseFromApi',
+        'purchases',
+      );
       return;
     }
     if (!responseData) {

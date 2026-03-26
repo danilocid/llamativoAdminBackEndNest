@@ -15,7 +15,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { ReceptionsModule } from './modules/receptions/receptions.module';
 import { MercadoLibreModule } from './modules/mercado-libre/mercado-libre.module';
-import { GoogleLoggingService } from './common/services/google-logging.service';
+import { GoogleLoggingModule } from './common/services/google-logging.module';
 
 @Module({
   imports: [
@@ -23,6 +23,7 @@ import { GoogleLoggingService } from './common/services/google-logging.service';
     CommonModule,
     ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule,
+    GoogleLoggingModule,
     EntitiesModule,
     InventoryModule,
     NotificationsModule,
@@ -40,8 +41,6 @@ import { GoogleLoggingService } from './common/services/google-logging.service';
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
     },
-    GoogleLoggingService,
   ],
-  exports: [GoogleLoggingService],
 })
 export class AppModule {}

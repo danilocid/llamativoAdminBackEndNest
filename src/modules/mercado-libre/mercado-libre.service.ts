@@ -127,14 +127,6 @@ export class MercadoLibreService {
   }
 
   async getProductDetailsFromMl(id: string) {
-    // Un solo log para la solicitud de detalles
-    await this.googleLoggingService.log(
-      'Obteniendo detalles del producto de Mercado Libre',
-      { id },
-      'INFO',
-      'getProductDetailsFromMl',
-      'mercado-libre',
-    );
     const url = `https://api.mercadolibre.com/items/${id}?include_attributes=all`;
     let response = null;
 
@@ -235,27 +227,25 @@ export class MercadoLibreService {
       return null;
     }
 
-    await this.googleLoggingService.log(
-      `Producto encontrado en la base de datos`,
-      { productId: product.id, tipo: isVariant ? 'id_variante_ml' : 'id_ml' },
-      'INFO',
-      'validateProductExist',
-      'mercado-libre',
-    );
     return product;
   }
 
   async validateProductStockAndPrice(product: Products, productDetails: any) {
-    // Un solo log para la validación
-    await this.googleLoggingService.log(
-      'Validando stock, precio y enlace del producto',
-      { dbProduct: product, mlProduct: productDetails },
-      'INFO',
-      'validateProductStockAndPrice',
-      'mercado-libre',
-    );
     // Validar si el stock en la base de datos es diferente al stock de Mercado Libre
     if (product.stock !== productDetails.available_quantity) {
+      await this.googleLoggingService.log(
+        'Stock diferente detectado',
+        {
+          productId: product.id,
+          descripcion: product.descripcion,
+          stockDB: product.stock,
+          stockML: productDetails.available_quantity,
+          productDetailsFromAPI: productDetails,
+        },
+        'WARNING',
+        'validateProductStockAndPrice',
+        'mercado-libre',
+      );
       let notificationText = `El stock en la base de datos es diferente al stock de Mercado Libre. Base de datos: ${product.stock}, Mercado Libre: ${productDetails.available_quantity}`;
       await this.notificationRepository.save({
         title: 'Stock diferente:' + product.descripcion,
@@ -265,6 +255,21 @@ export class MercadoLibreService {
     }
     // Validar si el precio en la base de datos es diferente al precio de Mercado Libre
     if (product.venta_neto + product.venta_imp !== productDetails.price) {
+      await this.googleLoggingService.log(
+        'Precio diferente detectado',
+        {
+          productId: product.id,
+          descripcion: product.descripcion,
+          precioDBTotal: product.venta_neto + product.venta_imp,
+          precioDBNeto: product.venta_neto,
+          precioDBImp: product.venta_imp,
+          precioML: productDetails.price,
+          productDetailsFromAPI: productDetails,
+        },
+        'WARNING',
+        'validateProductStockAndPrice',
+        'mercado-libre',
+      );
       let notificationText = `El precio en la base de datos es diferente al precio de Mercado Libre. Base de datos: ${product.venta_neto + product.venta_imp}, Mercado Libre: ${productDetails.price}`;
       await this.notificationRepository.save({
         title: 'Precio diferente:' + product.descripcion,
@@ -274,16 +279,22 @@ export class MercadoLibreService {
     }
     // validar si el enlace al producto es diferente
     if (product.enlace_ml !== productDetails.permalink) {
-      console.log(
-        'Enlace al producto diferente en la base de datos y Mercado Libre',
-        { dbLink: product.enlace_ml, mlLink: productDetails.permalink },
+      await this.googleLoggingService.log(
+        'Enlace al producto diferente, actualizando con el de Mercado Libre',
+        {
+          productId: product.id,
+          descripcion: product.descripcion,
+          oldLink: product.enlace_ml,
+          newLink: productDetails.permalink,
+          productDetailsFromAPI: productDetails,
+        },
+        'INFO',
+        'validateProductStockAndPrice',
+        'mercado-libre',
       );
-      let notificationText = `El enlace al producto ${product.descripcion} en la base de datos es diferente al enlace de Mercado Libre.`;
-      await this.notificationRepository.save({
-        title: 'Enlace diferente:' + product.descripcion,
-        description: notificationText,
-        url: '/articulos/ver/' + product.id,
-      });
+      // Actualizar el enlace en la base de datos
+      product.enlace_ml = productDetails.permalink;
+      await this.productsRepository.save(product);
     }
   }
 
@@ -305,14 +316,6 @@ export class MercadoLibreService {
         const sku = variation.attributes.find(
           (attribute) => attribute.id === 'SELLER_SKU',
         )?.value_name;
-
-        await this.googleLoggingService.log(
-          'Buscando producto por SKU',
-          { sku, variationId: variation.id },
-          'INFO',
-          'validateProductExistAndDetails',
-          'mercado-libre',
-        );
 
         if (sku) {
           const productBySku = await this.productsRepository.findOne({

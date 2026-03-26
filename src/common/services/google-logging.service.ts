@@ -25,7 +25,7 @@ export class GoogleLoggingService {
     }
     const log = this.googleLogger.log('application-log'); // Nombre del log
     const entry = log.entry(
-      { resource: { type: 'global' }, severity }, // Etiquetas para el log
+      { resource: { type: 'cloud_run_revision' }, severity }, // Etiquetas para el log
       { message, data, method, service }, // Datos adicionales
     );
 
@@ -35,9 +35,9 @@ export class GoogleLoggingService {
         await log.write(entry);
       } else {
         // En desarrollo, solo mostrar en consola
-        console.log(`[${severity}] [${service}] [${method}]: ${message}`);
+        console.warn(`[${severity}] [${service}] [${method}]: ${message}`);
         if (data) {
-          console.log('Datos:', data);
+          console.warn('Datos:', data);
         }
       }
     } catch (error) {

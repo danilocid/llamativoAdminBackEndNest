@@ -5,6 +5,53 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.4.0] - 2026-03-25
+
+### Agregado
+
+- Suite completa de pruebas unitarias para módulo de Mercado Libre (36 tests)
+  - `mercado-libre.controller.spec.ts` (8 tests): Tests para endpoints y manejo de códigos de autorización
+  - `mercado-libre-auth.service.spec.ts` (10 tests): Tests para autenticación, refresh de tokens y persistencia
+  - `mercado-libre.service.spec.ts` (9 tests): Tests para sincronización de productos, manejo de variaciones y notificaciones
+  - `product-sync.service.spec.ts` (9 tests): Tests para validación y sincronización de productos con/sin variaciones
+- Configuración `cross-env` para manejo multiplataforma de variables de entorno
+- Migración a ESLint 10 con flat config (`eslint.config.js`)
+
+### Actualizado
+
+- **Dependencias principales:**
+  - NestJS: 11.1.12 → 11.1.17
+  - @nestjs/config: 4.0.2 → 4.0.3
+  - @nestjs/swagger: 11.2.5 → 11.2.6
+  - axios: 1.13.2 → 1.13.6
+  - mysql2: 3.16.1 → 3.20.0
+  - class-validator: 0.14.3 → 0.14.4
+- **Herramientas de desarrollo:**
+  - ESLint: 9.39.2 → 10.1.0 (migración a flat config)
+  - Jest: 29.7.0 → 30.3.0
+  - @types/jest: 29.5.14 → 30.0.0
+  - @types/node: 22.19.7 → 22.19.15
+  - @types/supertest: 6.0.3 → 7.2.0
+  - @typescript-eslint/\*: 8.53.1 → 8.57.2
+
+- **Engine de Node.js:** Actualizado de >=18.0.0 a >=20.0.0
+
+### Mejorado
+
+- Silenciadas advertencias de deprecación del módulo `punycode` mediante `NODE_OPTIONS`
+- Scripts de test configurados con `cross-env` para compatibilidad Windows/Linux/macOS
+- Reglas de ESLint ajustadas para permitir variables no usadas con prefijo `_`
+- Cambio de `console.log` a `console.warn` en `GoogleLoggingService` para cumplir reglas de linting
+- Eliminado import no usado de `Logger` en `ReportsService`
+
+### Técnico
+
+- Total de tests en el proyecto: 63/63 pasando en 6 suites
+- Cobertura de código mejorada para módulo de Mercado Libre
+- Build exitoso sin errores de TypeScript
+- Linter ejecuta sin errores ni warnings
+- Configuración ESLint migrada a formato flat (compatibilidad v10+)
+
 ## [1.3.3] - 2026-03-12
 
 ### Mejorado

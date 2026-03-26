@@ -13,11 +13,11 @@ import { UpdateProductDto } from './dto/update-product.dto';
 
 describe('ProductsService', () => {
   let service: ProductsService;
-  let productsRepository: Repository<Products>;
-  let notificationRepository: Repository<Notification>;
-  let notificationsService: NotificationsService;
-  let mercadoLibreService: MercadoLibreService;
-  let googleLoggingService: GoogleLoggingService;
+  let _productsRepository: Repository<Products>;
+  let _notificationRepository: Repository<Notification>;
+  let _notificationsService: NotificationsService;
+  let _mercadoLibreService: MercadoLibreService;
+  let _googleLoggingService: GoogleLoggingService;
 
   const mockProduct: Products = {
     id: 1,
@@ -104,16 +104,16 @@ describe('ProductsService', () => {
     }).compile();
 
     service = module.get<ProductsService>(ProductsService);
-    productsRepository = module.get<Repository<Products>>(
+    _productsRepository = module.get<Repository<Products>>(
       getRepositoryToken(Products),
     );
-    notificationRepository = module.get<Repository<Notification>>(
+    _notificationRepository = module.get<Repository<Notification>>(
       getRepositoryToken(Notification),
     );
-    notificationsService =
+    _notificationsService =
       module.get<NotificationsService>(NotificationsService);
-    mercadoLibreService = module.get<MercadoLibreService>(MercadoLibreService);
-    googleLoggingService =
+    _mercadoLibreService = module.get<MercadoLibreService>(MercadoLibreService);
+    _googleLoggingService =
       module.get<GoogleLoggingService>(GoogleLoggingService);
   });
 
@@ -488,7 +488,7 @@ describe('ProductsService', () => {
     it('should exclude deprecated products from inventory', async () => {
       mockProductsRepository.find.mockResolvedValue([]);
 
-      const result = await service.getInventoryResume();
+      const _result = await service.getInventoryResume();
 
       expect(mockProductsRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({

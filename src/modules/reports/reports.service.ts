@@ -3,7 +3,7 @@ import { Sales } from '../sales/entities/sales.entity';
 import { Repository, Between } from 'typeorm';
 import { ReportDataType } from './entities/report-data-type.entity';
 import { ReportDataTypeDto } from './dto/report-data-type.dto';
-import { BadRequestException, Logger } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { ReportData } from './entities/report-data.entity';
 import { InsertReportDataDto } from './dto/insert-report-data.dto';
 import { GoogleLoggingService } from 'src/common/services/google-logging.service';

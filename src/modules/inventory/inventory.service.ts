@@ -68,7 +68,6 @@ export class InventoryService {
         data: null,
       };
     }
-    //console.log(data);
     const queryBuilderDetails =
       this.inventoryDetailsRepository.createQueryBuilder('inventoryDetails');
     queryBuilderDetails.where('ajuste_de_inventario_id = :id', { id: t.id });

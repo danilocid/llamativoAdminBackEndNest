@@ -3,12 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan } from 'typeorm';
 import { Notification } from './entities/notification.entity';
 import { CreateNotificationDto } from './dto/notification.dto';
+import { GoogleLoggingService } from '../../common/services/google-logging.service';
 
 @Injectable()
 export class NotificationsService {
   constructor(
     @InjectRepository(Notification)
     private notificationRepository: Repository<Notification>,
+    private readonly googleLoggingService: GoogleLoggingService,
   ) {}
   async getNotifications() {
     const notifications = await this.notificationRepository.find();
@@ -44,13 +46,25 @@ export class NotificationsService {
 
   async deleteReadedNotifications() {
     // Delete all readed notifications, where readed is true and readedAt is 1 week old
-    console.warn('Deleting readed notifications');
+    await this.googleLoggingService.log(
+      'Deleting readed notifications',
+      null,
+      'WARNING',
+      'deleteReadedNotifications',
+      'notifications',
+    );
     const date = new Date();
     date.setDate(date.getDate() - 7);
     const notificationsDeleted = await this.notificationRepository.delete({
       createdAt: LessThan(date),
     });
-    console.warn('Deleted notifications:', notificationsDeleted);
+    await this.googleLoggingService.log(
+      'Deleted notifications',
+      notificationsDeleted,
+      'WARNING',
+      'deleteReadedNotifications',
+      'notifications',
+    );
   }
 
   async markAsReaded(id: number) {
@@ -78,9 +92,21 @@ export class NotificationsService {
   }
 
   async deleteAllNotifications() {
-    console.warn('Eliminando todas las notificaciones');
+    await this.googleLoggingService.log(
+      'Eliminando todas las notificaciones',
+      null,
+      'WARNING',
+      'deleteAllNotifications',
+      'notifications',
+    );
     await this.notificationRepository.clear();
-    console.warn('Todas las notificaciones han sido eliminadas');
+    await this.googleLoggingService.log(
+      'Todas las notificaciones han sido eliminadas',
+      null,
+      'WARNING',
+      'deleteAllNotifications',
+      'notifications',
+    );
 
     return {
       serverResponseCode: 200,

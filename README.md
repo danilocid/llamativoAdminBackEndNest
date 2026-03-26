@@ -28,19 +28,20 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 
 ## Versión Actual
 
-**v1.3.3** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
+**v1.4.0** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
 
 ## Tecnologías
 
-- **NestJS**: 11.1.12
+- **NestJS**: 11.1.17
 - **TypeScript**: 5.9.3
 - **TypeORM**: 0.3.28
-- **MySQL**: 8.x (con mysql2 driver)
+- **MySQL**: 8.x (con mysql2 3.20.0)
 - **JWT**: Para autenticación
 - **Google Cloud Logging**: Sistema de logging centralizado
-- **Axios**: Cliente HTTP para integraciones
+- **Axios**: 1.13.6
 - **bcryptjs**: Encriptación de contraseñas
-- **Jest**: Framework de testing
+- **Jest**: 30.3.0
+- **ESLint**: 10.1.0
 
 ## Características Principales
 
@@ -51,13 +52,13 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 - 🏪 Integración con Mercado Libre (OAuth2, sincronización de productos)
 - 📝 Logging centralizado con Google Cloud Platform
 - 🔔 Sistema de notificaciones
-- ✅ Suite de pruebas unitarias (27 tests)
+- ✅ Suite completa de pruebas unitarias (63 tests)
 - 🚀 Soporte para productos deprecados
 - 📈 Resúmenes de inventario con cálculos de rentabilidad
 
 ## Requisitos Previos
 
-- Node.js >= 18.0.0
+- Node.js >= 20.0.0
 - npm >= 9.0.0
 - MySQL 8.x
 - Cuenta de Google Cloud Platform (para logging)
