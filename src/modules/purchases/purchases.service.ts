@@ -102,7 +102,7 @@ export class PurchasesService {
         },
       });
       responseData = response.data;
-    } catch (error) {
+    } catch (error: any) {
       await this.googleLoggingService.log(
         'Error al obtener datos de la API',
         { errorCode: error.code, errorMessage: error.message },
@@ -339,7 +339,13 @@ export class PurchasesService {
 
     try {
       const result = await this.createPurchaseFromApi({ month, year });
-
+      this.googleLoggingService.log(
+        'Resultado de la sincronización automática de compras',
+        result,
+        'INFO',
+        'syncCurrentMonthPurchases',
+        'purchases',
+      );
       if (!result) {
         // Si hay un error en la API
         const notification = this.notificationRepository.create({
@@ -425,7 +431,7 @@ export class PurchasesService {
     } catch (error) {
       await this.googleLoggingService.log(
         'Error en sincronización automática de compras',
-        { month, year, error: error.message },
+        { month, year, error: (error as any).message },
         'ERROR',
         'syncCurrentMonthPurchases',
         'purchases',
@@ -434,7 +440,7 @@ export class PurchasesService {
       // Crear notificación de error
       const notification = this.notificationRepository.create({
         title: 'Error en sincronización de compras',
-        description: `Error al sincronizar compras del mes ${month}/${year}: ${error.message}`,
+        description: `Error al sincronizar compras del mes ${month}/${year}: ${(error as any).message}`,
         url: '/compras',
       });
       await this.notificationRepository.save(notification);
@@ -442,7 +448,7 @@ export class PurchasesService {
       return {
         serverResponseCode: 500,
         serverResponseMessage: 'Error al sincronizar compras',
-        data: { error: error.message },
+        data: { error: (error as any).message },
       };
     }
   }
@@ -711,7 +717,7 @@ export class PurchasesService {
 
       await this.googleLoggingService.log(
         'Error inesperado al crear compra',
-        { error: error.message, dto },
+        { error: (error as any).message, dto },
         'ERROR',
         'createPurchase',
         'purchases',

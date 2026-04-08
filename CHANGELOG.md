@@ -5,6 +5,24 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.5.1] - 2026-04-07
+
+### Agregado
+
+- **Tests unitarios para `PurchasesService`** (24 tests, cobertura completa)
+  - `getTypes`: retorno de tipos ordenados
+  - `getAllPurchases`: filtro por mes y año
+  - `editPurchase`: compra no encontrada, actualización exitosa, error de BD
+  - `getReport`: totales mes actual/anterior, rollback a diciembre
+  - `createPurchase`: validaciones de proveedor, tipo documento, tipo compra, duplicado y creación exitosa
+  - `createPurchaseFromApi`: error axios, API failure, lista vacía, tipo doc no encontrado, ya existe, creación exitosa
+  - `syncCurrentMonthPurchases`: todos los flujos de notificaciones
+
+### Corregido
+
+- `PurchasesService`: 3 ocurrencias de `error.message` en bloques `catch` tipados como `unknown` → `(error as any).message`
+- `tsconfig.json`: `ignoreDeprecations` actualizado a `"5.0"` (TypeScript 5.9.3)
+
 ## [1.5.0] - 2026-03-25
 
 ### Agregado
