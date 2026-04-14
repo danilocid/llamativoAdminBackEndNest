@@ -95,7 +95,7 @@ export class MercadoLibreService {
           }
 
           response.data.details.push(productDetails.data);
-        } catch (error) {
+        } catch (error: any) {
           // Registrar solo un log de error por cada producto
           await this.googleLoggingService.log(
             'Error al obtener detalles del producto de Mercado Libre',
@@ -143,7 +143,7 @@ export class MercadoLibreService {
           headers: headers,
         }),
       );
-    } catch (error) {
+    } catch (error: any) {
       /*  await this.googleLoggingService.log(
         'Error al obtener detalles del producto de Mercado Libre',
         { error: error.message, id },
@@ -193,7 +193,7 @@ export class MercadoLibreService {
           headers: headers,
         }),
       );
-    } catch (error) {
+    } catch (error: any) {
       await this.googleLoggingService.log(
         'Error al listar productos de Mercado Libre',
         { error: error.message },

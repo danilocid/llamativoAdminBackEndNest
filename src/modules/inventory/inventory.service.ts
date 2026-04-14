@@ -1,13 +1,17 @@
+import { Injectable } from '@nestjs/common';
 import { ProductMovementDetail } from '../products-movements/entities/product_movement_detail.entity';
 import { ProductMovementType } from '../products-movements/entities/product_movement_type.entity';
 import { Products } from '../products/entities/products.entity';
+import { User } from '../auth/entities/user.entity';
 import { GetInventoryDto } from './dto/get.dto';
 import { SaveInventoryDto } from './dto/save-inventory.dto';
+import { SubmitCountDto } from './dto/submit-count.dto';
 import { InventoryDetails } from './entities/inventory-details.entity';
 import { Inventory } from './entities/inventory.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 
+@Injectable()
 export class InventoryService {
   constructor(
     @InjectRepository(Inventory)
@@ -20,6 +24,8 @@ export class InventoryService {
     private readonly productMovementDetailRepository: Repository<ProductMovementDetail>,
     @InjectRepository(ProductMovementType)
     private readonly productMovementTypeRepository: Repository<ProductMovementType>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
   ) {}
 
   async getAllInventory(t: GetInventoryDto) {
@@ -140,6 +146,161 @@ export class InventoryService {
       serverResponseCode: 201,
       serverResponseMessage: 'Inventory created',
       data: inventory,
+    };
+  }
+
+  // ─── Conteo aleatorio ────────────────────────────────────────────────────────
+
+  async getNextProductToCount() {
+    const product = await this.productsRepository
+      .createQueryBuilder('product')
+      .where('product.stock > 0')
+      .orderBy('product.last_cont', 'ASC')
+      .getOne();
+
+    if (!product) {
+      return {
+        serverResponseCode: 404,
+        serverResponseMessage:
+          'No hay productos con stock disponible para contar',
+        data: null,
+      };
+    }
+
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: 'Producto obtenido exitosamente',
+      data: product,
+    };
+  }
+
+  async submitRandomCount(dto: SubmitCountDto, userId: number) {
+    const product = await this.productsRepository.findOne({
+      where: { id: dto.product_id },
+    });
+
+    if (!product) {
+      return {
+        serverResponseCode: 404,
+        serverResponseMessage: 'Producto no encontrado',
+        data: null,
+      };
+    }
+
+    const now = new Date();
+    let adjustmentCreated = false;
+    let adjustment: Inventory | null = null;
+
+    if (dto.stock_counted !== product.stock) {
+      const diff = dto.stock_counted - product.stock;
+      const entradas = diff > 0 ? diff : 0;
+      const salidas = diff < 0 ? Math.abs(diff) : 0;
+
+      const movementType = await this.productMovementTypeRepository
+        .createQueryBuilder('t')
+        .where('LOWER(t.tipo_movimiento) LIKE :pattern', {
+          pattern: '%ajuste%',
+        })
+        .getOne();
+
+      if (!movementType) {
+        return {
+          serverResponseCode: 404,
+          serverResponseMessage:
+            'No se encontró tipo de movimiento de ajuste en la base de datos',
+          data: null,
+        };
+      }
+
+      const user = await this.userRepository.findOne({
+        where: { id: userId },
+      });
+
+      // Crear ajuste de inventario
+      const inventory = new Inventory();
+      inventory.costo_neto = product.costo_neto;
+      inventory.costo_imp = product.costo_imp;
+      inventory.entradas = entradas;
+      inventory.salidas = salidas;
+      inventory.observaciones = `Conteo aleatorio - ${product.descripcion}`;
+      inventory.tipo_movimiento = movementType;
+      inventory.usuario = user;
+      await this.inventoryRepository.save(inventory);
+
+      // Detalle del ajuste
+      const detail = new InventoryDetails();
+      detail.inventory = inventory;
+      detail.producto = product;
+      detail.costo_neto = product.costo_neto;
+      detail.costo_imp = product.costo_imp;
+      detail.entradas = entradas;
+      detail.salidas = salidas;
+      await this.inventoryDetailsRepository.save(detail);
+
+      // Detalle de movimiento
+      const movementDetail = new ProductMovementDetail();
+      movementDetail.producto = product;
+      movementDetail.cantidad = diff;
+      movementDetail.id_movimiento = inventory.id;
+      movementDetail.movimiento = movementType;
+      movementDetail.user_id = userId;
+      await this.productMovementDetailRepository.save(movementDetail);
+
+      // Actualizar stock
+      product.stock = dto.stock_counted < 0 ? 0 : dto.stock_counted;
+
+      adjustmentCreated = true;
+      adjustment = inventory;
+    }
+
+    product.last_cont = now;
+    await this.productsRepository.save(product);
+
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: adjustmentCreated
+        ? 'Conteo registrado y ajuste de inventario creado'
+        : 'Conteo registrado sin diferencias',
+      adjustmentCreated,
+      data: adjustment,
+    };
+  }
+
+  async getInventoryReportByMonth(month: number, year: number) {
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 1);
+
+    const adjustments = await this.inventoryRepository.find({
+      where: { createdAt: Between(startDate, endDate) },
+      order: { createdAt: 'ASC' },
+      relations: ['tipo_movimiento', 'usuario'],
+    });
+
+    let totalCostoNeto = 0;
+    let totalCostoImp = 0;
+    let totalEntradas = 0;
+    let totalSalidas = 0;
+
+    adjustments.forEach((adj) => {
+      totalCostoNeto += adj.costo_neto;
+      totalCostoImp += adj.costo_imp;
+      totalEntradas += adj.entradas;
+      totalSalidas += adj.salidas;
+    });
+
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: 'Ajustes de inventario obtenidos exitosamente',
+      data: {
+        totals: {
+          count: adjustments.length,
+          entradas: totalEntradas,
+          salidas: totalSalidas,
+          costoNeto: totalCostoNeto,
+          costoImp: totalCostoImp,
+          costoTotal: totalCostoNeto + totalCostoImp,
+        },
+      },
     };
   }
 }

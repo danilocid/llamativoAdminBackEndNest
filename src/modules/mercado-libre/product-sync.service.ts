@@ -234,7 +234,7 @@ export class ProductSyncService {
       );
 
       return notification;
-    } catch (error) {
+    } catch (error: any) {
       await this.googleLoggingService.log(
         'Error al crear notificacion',
         { error: error.message, title, description },
@@ -263,7 +263,7 @@ export class ProductSyncService {
       );
 
       return { success: true, count: products.length };
-    } catch (error) {
+    } catch (error: any) {
       await this.googleLoggingService.log(
         'Error al sincronizar lote de productos',
         { error: error.message, count: products.length },

@@ -28,20 +28,20 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 
 ## Versión Actual
 
-**v1.5.0** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
+**v1.6.0** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
 
 ## Tecnologías
 
-- **NestJS**: 11.1.17
-- **TypeScript**: 5.9.3
+- **NestJS**: 11.1.19
+- **TypeScript**: 6.0.2
 - **TypeORM**: 0.3.28
-- **MySQL**: 8.x (con mysql2 3.20.0)
+- **MySQL**: 8.x (con mysql2 3.22.0)
 - **JWT**: Para autenticación
 - **Google Cloud Logging**: Sistema de logging centralizado
-- **Axios**: 1.13.6
-- **bcryptjs**: Encriptación de contraseñas
+- **Axios**: 1.15.0
+- **bcryptjs**: 3.0.3
 - **Jest**: 30.3.0
-- **ESLint**: 10.1.0
+- **ESLint**: 10.2.0
 
 ## Características Principales
 
@@ -49,6 +49,7 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 - Gestión completa de productos e inventario
 - Módulos de ventas, compras y recepciones
 - Sistema de reportes y estadísticas
+- **Conteo aleatorio de inventario** con ajuste automático de stock
 - Integración con Mercado Libre (OAuth2, sincronización de productos)
 - Logging centralizado con Google Cloud Platform
 - Sistema de notificaciones
@@ -145,7 +146,10 @@ npm run test:e2e
 
 - **AuthService**: 4 tests (login, validaciones, JWT)
 - **ProductsService**: 23 tests (CRUD, inventario, deprecados)
-- **Total**: 27 tests unitarios
+- **PurchasesService**: 24 tests (CRUD, reporte, sincronización SII)
+- **MercadoLibreService**: 9 tests (sincronización, variaciones)
+- **ProductSyncService**: 21 tests (validación, SKU, lotes)
+- **Total**: 63 tests unitarios
 
 ## Estructura del Proyecto
 

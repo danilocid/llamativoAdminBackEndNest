@@ -9,6 +9,7 @@ import { InventoryDetails } from './entities/inventory-details.entity';
 import { Products } from '../products/entities/products.entity';
 import { ProductMovementDetail } from '../products-movements/entities/product_movement_detail.entity';
 import { ProductMovementType } from '../products-movements/entities/product_movement_type.entity';
+import { User } from '../auth/entities/user.entity';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { ProductMovementType } from '../products-movements/entities/product_move
       Products,
       ProductMovementDetail,
       ProductMovementType,
+      User,
     ]),
   ],
   controllers: [InventoryController],

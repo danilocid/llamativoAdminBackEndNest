@@ -5,6 +5,54 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.6.0] - 2026-04-13
+
+### Agregado
+
+- **Módulo de conteo aleatorio de inventario**
+  - Endpoint `GET /inventories/random-count`: obtiene el próximo producto a contar (el de menor `last_cont`)
+  - Endpoint `POST /inventories/random-count`: registra el conteo físico, crea ajuste de inventario si hay diferencia
+  - Campo `last_cont: Date` actualizado en la entidad `Products` tras cada conteo
+  - Pantalla frontend "Conteo Aleatorio" bajo el módulo de Inventario
+  - Enlace en sidebar agregado bajo Inventario → Conteo Aleatorio
+- **Reporte mensual: sección de ajustes de inventario**
+  - Endpoint `GET /inventories/report/:month/:year`: totales de ajustes del mes
+  - Tarjeta en el reporte mensual con: cantidad de ajustes, ingresos (u.), egresos (u.), costo neto, IVA y costo total
+  - Sección incluida en el PDF del reporte mensual
+
+### Corregido
+
+- **Orden de rutas en `InventoryController`**: `GET random-count` y `GET report/:month/:year` movidos antes de `GET :id` para evitar que la ruta parametrizada capture rutas estáticas (error 404)
+- **Interfaz `Product` (frontend)**: propiedad `last_cont: Date` faltante agregada a `product.model.ts`
+
+### Actualizado
+
+- **Dependencias (major bumps):**
+  - `@types/node`: 22.19.15 → 25.6.0
+  - `class-validator`: 0.14.4 → 0.15.1
+  - `bcryptjs`: 2.4.3 → 3.0.3
+  - `typescript`: 5.9.3 → 6.0.2
+- **Dependencias (minor/patch):**
+  - NestJS (`common`, `core`, `platform-express`, `testing`): 11.1.17 → 11.1.19
+  - `@nestjs/cli`: 11.0.16 → 11.0.19
+  - `@nestjs/config`: 4.0.3 → 4.0.4
+  - `@nestjs/schematics`: 11.0.9 → 11.0.10
+  - `@nestjs/swagger`: 11.2.6 → 11.2.7
+  - `@nestjs/typeorm`: 11.0.0 → 11.0.1
+  - `axios`: 1.13.6 → 1.15.0
+  - `mysql2`: 3.20.0 → 3.22.0
+  - `eslint`: 10.1.0 → 10.2.0
+  - `prettier`: 3.8.1 → 3.8.2
+  - `ts-jest`: 29.4.6 → 29.4.9
+  - `ts-loader`: 9.5.4 → 9.5.7
+  - `@typescript-eslint/*`: 8.57.2 → 8.58.2
+
+### Técnico
+
+- `tsconfig.build.json`: agregado `"rootDir": "./src"` (requerido por TypeScript 6)
+- `tsconfig.json`: `ignoreDeprecations` actualizado a `"6.0"` (silencia advertencia de `baseUrl`)
+- Bloques `catch` en `mercado-libre.service.ts` y `product-sync.service.ts` tipados como `(error: any)` (TypeScript 6 estricto con tipo `unknown`)
+
 ## [1.5.1] - 2026-04-07
 
 ### Agregado
