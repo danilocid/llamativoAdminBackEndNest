@@ -152,20 +152,25 @@ export class InventoryService {
   // ─── Conteo aleatorio ────────────────────────────────────────────────────────
 
   async getNextProductToCount() {
-    const product = await this.productsRepository
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    const candidates = await this.productsRepository
       .createQueryBuilder('product')
       .where('product.stock > 0')
-      .orderBy('product.last_cont', 'ASC')
-      .getOne();
+      .andWhere('product.last_cont < :oneWeekAgo', { oneWeekAgo })
+      .getMany();
 
-    if (!product) {
+    if (candidates.length === 0) {
       return {
         serverResponseCode: 404,
         serverResponseMessage:
-          'No hay productos con stock disponible para contar',
+          'No hay productos con stock pendiente de contar',
         data: null,
       };
     }
+
+    const product = candidates[Math.floor(Math.random() * candidates.length)];
 
     return {
       serverResponseCode: 200,
