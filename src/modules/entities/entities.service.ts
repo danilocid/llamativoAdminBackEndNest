@@ -5,7 +5,14 @@ import { Comune } from './entities/comunas.entity';
 import { Entities } from './entities/entities.entity';
 import { CreateEntityDto } from './dto/create-entity.dto';
 import { GetEntitiesDto } from './dto/get.dto';
+import { ResponseDto } from 'src/common/dto/response.dto';
+import {
+  NotFoundException,
+  BadRequestException,
+  Injectable,
+} from '@nestjs/common';
 
+@Injectable()
 export class EntitiesService {
   constructor(
     @InjectRepository(Region)
@@ -17,7 +24,7 @@ export class EntitiesService {
   ) {}
 
   //get all entities
-  async getAllEntities(t: GetEntitiesDto) {
+  async getAllEntities(t: GetEntitiesDto): Promise<ResponseDto> {
     const skippedItems = (t.page - 1) * 10;
     const where = [];
     let order = {};
@@ -33,10 +40,8 @@ export class EntitiesService {
         { nombre: Like(`%${t.param}%`) },
         { rut: Like(`%${t.param}%`) },
       );
-      //where.push({ rut: t.param });
     }
     if (t.order != '' && t.order != undefined) {
-      // if query.order have a . then it is a relation, so we need to split it
       const condition = columnt.includes('.');
       if (condition) {
         const [relation, column] = columnt.split('.');
@@ -61,13 +66,12 @@ export class EntitiesService {
     return {
       serverResponseCode: 200,
       serverResponseMessage: 'Entidades obtenidas.',
-      data: entities,
-      count,
+      data: { entities, count },
     };
   }
 
   // get all providers (type P and B) for dropdowns
-  async getProviders() {
+  async getProviders(): Promise<ResponseDto> {
     const providers = await this.entitiesRepository.find({
       where: [{ tipo: 'P' }, { tipo: 'B' }],
       order: { nombre: 'ASC' },
@@ -81,7 +85,7 @@ export class EntitiesService {
   }
 
   //get all regions
-  async getAllRegions() {
+  async getAllRegions(): Promise<ResponseDto> {
     const regions = await this.regionRepository.find();
     return {
       serverResponseCode: 200,
@@ -91,16 +95,12 @@ export class EntitiesService {
   }
 
   //get all communes
-  async getAllCommunesByRegionId(idRegion: number) {
+  async getAllCommunesByRegionId(idRegion: number): Promise<ResponseDto> {
     const region = await this.regionRepository.findOne({
       where: { id: idRegion },
     });
     if (!region) {
-      return {
-        serverResponseCode: 404,
-        serverResponseMessage: 'Región no encontrada.',
-        data: null,
-      };
+      throw new NotFoundException('Región no encontrada.');
     }
     const communes = await this.comuneRepository.find({
       where: { region: region },
@@ -114,17 +114,13 @@ export class EntitiesService {
   }
 
   //get entity by rut
-  async getEntityByRut(rut: string) {
+  async getEntityByRut(rut: string): Promise<ResponseDto> {
     const entity = await this.entitiesRepository.findOne({
       where: { rut: rut },
       relations: ['comuna', 'comuna.region'],
     });
     if (!entity) {
-      return {
-        serverResponseCode: 404,
-        serverResponseMessage: 'Entidad no encontrada.',
-        data: null,
-      };
+      throw new NotFoundException('Entidad no encontrada.');
     }
     return {
       serverResponseCode: 200,
@@ -134,40 +130,26 @@ export class EntitiesService {
   }
 
   //create entity
-  async createEntity(entity: CreateEntityDto) {
+  async createEntity(entity: CreateEntityDto): Promise<ResponseDto> {
     // check if entity already exists
     let newEntity = await this.entitiesRepository.findOne({
       where: { rut: entity.rut },
     });
     if (newEntity) {
-      return {
-        serverResponseCode: 400,
-        serverResponseMessage: 'Ya existe una entidad con ese rut.',
-        data: null,
-      };
+      throw new BadRequestException('Ya existe una entidad con ese rut.');
     }
-
     // check if comune exists
     const comune = await this.comuneRepository.findOne({
       where: { id: entity.id_comuna },
     });
-
     if (!comune) {
-      return {
-        serverResponseCode: 404,
-        serverResponseMessage: 'Comuna no encontrada.',
-        data: null,
-      };
+      throw new NotFoundException('Comuna no encontrada.');
     }
     newEntity = { ...entity, comuna: comune };
     try {
       await this.entitiesRepository.save(newEntity);
     } catch (error) {
-      return {
-        serverResponseCode: 400,
-        serverResponseMessage: 'Error al crear la entidad.',
-        data: error,
-      };
+      throw new BadRequestException('Error al crear la entidad.');
     }
     return {
       serverResponseCode: 201,
@@ -177,54 +159,27 @@ export class EntitiesService {
   }
 
   //update entity
-  async updateEntity(entity: CreateEntityDto) {
+  async updateEntity(entity: CreateEntityDto): Promise<ResponseDto> {
     // check if entity exists
     let newEntity = await this.entitiesRepository.findOne({
       where: { rut: entity.rut },
     });
     if (!newEntity) {
-      return {
-        serverResponseCode: 404,
-        serverResponseMessage: 'Entidad no encontrada.',
-        data: null,
-      };
+      throw new NotFoundException('Entidad no encontrada.');
     }
-
-    // check if rut exists
-    if (entity.rut !== newEntity.rut) {
-      const entityExists = await this.entitiesRepository.findOne({
-        where: { rut: entity.rut },
-      });
-      if (entityExists) {
-        return {
-          serverResponseCode: 400,
-          serverResponseMessage: 'Ya existe una entidad con ese rut.',
-          data: null,
-        };
-      }
-    }
-
+    // check if rut exists (si se permite cambiar rut, aquí iría la lógica)
     // check if comune exists
     const comune = await this.comuneRepository.findOne({
       where: { id: entity.id_comuna },
     });
-
     if (!comune) {
-      return {
-        serverResponseCode: 404,
-        serverResponseMessage: 'Comuna no encontrada.',
-        data: null,
-      };
+      throw new NotFoundException('Comuna no encontrada.');
     }
     newEntity = { ...entity, comuna: comune };
     try {
       await this.entitiesRepository.save(newEntity);
     } catch (error) {
-      return {
-        serverResponseCode: 400,
-        serverResponseMessage: 'Error al actualizar la entidad.',
-        data: error,
-      };
+      throw new BadRequestException('Error al actualizar la entidad.');
     }
     return {
       serverResponseCode: 200,

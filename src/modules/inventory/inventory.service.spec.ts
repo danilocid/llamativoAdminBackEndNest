@@ -102,7 +102,18 @@ describe('InventoryService', () => {
   };
 
   const mockProductsRepository = {
-    createQueryBuilder: jest.fn(),
+    createQueryBuilder: jest.fn(() => ({
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(null),
+      getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      leftJoin: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+    })),
     save: jest.fn(),
     findOne: jest.fn(),
   };

@@ -15,6 +15,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { ReceptionsModule } from './modules/receptions/receptions.module';
 import { MercadoLibreModule } from './modules/mercado-libre/mercado-libre.module';
+import { WoocommerceModule } from './modules/woocommerce/woocommerce.module';
 import { GoogleLoggingModule } from './common/services/google-logging.module';
 
 @Module({
@@ -34,6 +35,7 @@ import { GoogleLoggingModule } from './common/services/google-logging.module';
     ReportsModule,
     SalesModule,
     MercadoLibreModule,
+    WoocommerceModule,
   ],
   controllers: [],
   providers: [

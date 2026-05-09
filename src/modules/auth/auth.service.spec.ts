@@ -5,6 +5,11 @@ import { User } from './entities/user.entity';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
+
+jest.mock('bcryptjs', () => ({
+  ...jest.requireActual('bcryptjs'),
+  compare: jest.fn(),
+}));
 import { LoginAuthDto } from './dto/login.dto';
 
 describe('AuthService', () => {
@@ -64,41 +69,29 @@ describe('AuthService', () => {
       password: 'testpassword',
     };
 
-    it('should return error when user is not found', async () => {
+    it('should throw UnauthorizedException when user is not found', async () => {
       mockUserRepository.findOne.mockResolvedValue(null);
 
-      const result = await service.login(loginDto);
-
-      expect(result).toEqual({
-        serverResponseCode: 401,
-        serverResponseMessage: 'Usuario no encontrado.',
-        data: null,
-      });
+      await expect(service.login(loginDto)).rejects.toThrow(
+        'Usuario no encontrado.',
+      );
       expect(userRepository.findOne).toHaveBeenCalledWith({
         where: { user: loginDto.user },
       });
     });
 
-    it('should return error when password is incorrect', async () => {
+    it('should throw UnauthorizedException when password is incorrect', async () => {
       mockUserRepository.findOne.mockResolvedValue(mockUser);
-      jest
-        .spyOn(bcrypt, 'compare')
-        .mockImplementation(() => Promise.resolve(false));
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
-      const result = await service.login(loginDto);
-
-      expect(result).toEqual({
-        serverResponseCode: 401,
-        serverResponseMessage: 'Contraseña incorrecta.',
-        data: null,
-      });
+      await expect(service.login(loginDto)).rejects.toThrow(
+        'Contraseña incorrecta.',
+      );
     });
 
     it('should return JWT token when login is successful', async () => {
       mockUserRepository.findOne.mockResolvedValue({ ...mockUser });
-      jest
-        .spyOn(bcrypt, 'compare')
-        .mockImplementation(() => Promise.resolve(true));
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
       const result = await service.login(loginDto);
 

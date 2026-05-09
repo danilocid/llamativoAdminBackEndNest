@@ -8,12 +8,14 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { HttpModule } from '@nestjs/axios';
 import { MercadoLibreModule } from '../mercado-libre/mercado-libre.module';
 import { GoogleLoggingService } from 'src/common/services/google-logging.service';
+import { WoocommerceModule } from '../woocommerce/woocommerce.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Products, Notification]),
     HttpModule,
     MercadoLibreModule,
+    WoocommerceModule,
   ],
   controllers: [ProductsController],
   providers: [ProductsService, NotificationsService, GoogleLoggingService],

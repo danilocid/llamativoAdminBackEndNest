@@ -10,6 +10,15 @@ import { GoogleLoggingService } from 'src/common/services/google-logging.service
 import { NotFoundException } from '@nestjs/common';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { WoocommerceService } from '../woocommerce/woocommerce.service';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals';
 
 describe('ProductsService', () => {
   let service: ProductsService;
@@ -17,6 +26,7 @@ describe('ProductsService', () => {
   let _notificationRepository: Repository<Notification>;
   let _notificationsService: NotificationsService;
   let _mercadoLibreService: MercadoLibreService;
+  let _woocomerceService: WoocommerceService;
   let _googleLoggingService: GoogleLoggingService;
 
   const mockProduct: Products = {
@@ -44,8 +54,13 @@ describe('ProductsService', () => {
     last_cont: new Date(),
   };
 
-  const mockProductsRepository = {
-    find: jest.fn(),
+  // Helper para clonar un producto y asegurar el tipo
+  function cloneProduct(overrides: Partial<Products> = {}): Products {
+    return { ...mockProduct, ...overrides };
+  }
+
+  const mockProductsRepository: any = {
+    find: jest.fn().mockResolvedValue([] as Products[]),
     findOne: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
@@ -55,25 +70,35 @@ describe('ProductsService', () => {
       orderBy: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
       skip: jest.fn().mockReturnThis(),
-      getManyAndCount: jest.fn().mockResolvedValue([[mockProduct], 1]),
+      getManyAndCount: jest
+        .fn()
+        .mockImplementation(async () => [[cloneProduct()], 1]),
     })),
   };
 
-  const mockNotificationRepository = {
+  const mockNotificationRepository: any = {
     save: jest.fn(),
   };
 
-  const mockNotificationsService = {
-    deleteAllNotifications: jest.fn().mockResolvedValue(undefined),
-    deleteReadedNotifications: jest.fn().mockResolvedValue(undefined),
+  const mockNotificationsService: any = {
+    deleteAllNotifications: jest.fn().mockImplementation(async () => undefined),
+    deleteReadedNotifications: jest
+      .fn()
+      .mockImplementation(async () => undefined),
   };
 
-  const mockMercadoLibreService = {
-    listProducts: jest.fn().mockResolvedValue(undefined),
+  const mockMercadoLibreService: any = {
+    listProducts: jest.fn().mockImplementation(async () => undefined),
   };
 
-  const mockGoogleLoggingService = {
-    log: jest.fn().mockResolvedValue(undefined),
+  const mockGoogleLoggingService: any = {
+    log: jest.fn().mockImplementation(async () => undefined),
+  };
+
+  const mockWoocommerceService: any = {
+    syncForNotifications: jest
+      .fn()
+      .mockImplementation(async () => ({ processedPages: 1 })),
   };
 
   beforeEach(async () => {
@@ -82,7 +107,7 @@ describe('ProductsService', () => {
         ProductsService,
         {
           provide: getRepositoryToken(Products),
-          useValue: mockProductsRepository,
+          useValue: mockProductsRepository as any,
         },
         {
           provide: getRepositoryToken(Notification),
@@ -100,6 +125,10 @@ describe('ProductsService', () => {
           provide: GoogleLoggingService,
           useValue: mockGoogleLoggingService,
         },
+        {
+          provide: WoocommerceService,
+          useValue: mockWoocommerceService,
+        },
       ],
     }).compile();
 
@@ -113,6 +142,7 @@ describe('ProductsService', () => {
     _notificationsService =
       module.get<NotificationsService>(NotificationsService);
     _mercadoLibreService = module.get<MercadoLibreService>(MercadoLibreService);
+    _woocomerceService = module.get<WoocommerceService>(WoocommerceService);
     _googleLoggingService =
       module.get<GoogleLoggingService>(GoogleLoggingService);
   });
@@ -141,8 +171,8 @@ describe('ProductsService', () => {
       const result = await service.getAllProducts(getProductsDto);
 
       expect(result.serverResponseCode).toBe(200);
-      expect(result.data).toEqual([mockProduct]);
-      expect(result.count).toBe(1);
+      expect(result.data.products).toEqual([mockProduct]);
+      expect(result.data.count).toBe(1);
       expect(mockGoogleLoggingService.log).toHaveBeenCalled();
     });
 
@@ -152,7 +182,9 @@ describe('ProductsService', () => {
         orderBy: jest.fn().mockReturnThis(),
         take: jest.fn().mockReturnThis(),
         skip: jest.fn().mockReturnThis(),
-        getManyAndCount: jest.fn().mockResolvedValue([[mockProduct], 1]),
+        getManyAndCount: jest
+          .fn()
+          .mockImplementation(async () => [[mockProduct], 1]),
       };
 
       mockProductsRepository.createQueryBuilder.mockReturnValue(
@@ -181,7 +213,9 @@ describe('ProductsService', () => {
         orderBy: jest.fn().mockReturnThis(),
         take: jest.fn().mockReturnThis(),
         skip: jest.fn().mockReturnThis(),
-        getManyAndCount: jest.fn().mockResolvedValue([[mockProduct], 1]),
+        getManyAndCount: jest
+          .fn()
+          .mockImplementation(async () => [[mockProduct], 1]),
       };
 
       mockProductsRepository.createQueryBuilder.mockReturnValue(
@@ -220,6 +254,7 @@ describe('ProductsService', () => {
 
     it('should throw NotFoundException when product does not exist', async () => {
       mockProductsRepository.findOne.mockResolvedValue(null);
+      mockProductsRepository.find.mockResolvedValue([] as Products[]);
 
       await expect(service.getOneProduct(999)).rejects.toThrow(
         NotFoundException,
@@ -249,6 +284,7 @@ describe('ProductsService', () => {
 
     it('should create a product without barcode', async () => {
       mockProductsRepository.findOne.mockResolvedValue(null);
+      mockProductsRepository.find.mockResolvedValue([] as Products[]);
       const newProduct = { ...mockProduct, id: 2, cod_barras: '' };
       mockProductsRepository.create.mockReturnValue(newProduct);
       mockProductsRepository.save.mockResolvedValue({
@@ -288,6 +324,9 @@ describe('ProductsService', () => {
 
     it('should return error when product already exists', async () => {
       mockProductsRepository.findOne.mockResolvedValue(mockProduct);
+      mockProductsRepository.find.mockResolvedValue([
+        mockProduct,
+      ] as Products[]);
 
       const result = await service.createProduct(createProductDto);
 
@@ -416,8 +455,12 @@ describe('ProductsService', () => {
         { ...mockProduct, id: 2, stock: 0, activo: true },
       ];
 
-      mockProductsRepository.find.mockResolvedValue(productsWithoutStock);
-      mockProductsRepository.save.mockResolvedValue(productsWithoutStock);
+      mockProductsRepository.find.mockResolvedValue(
+        productsWithoutStock.map((p) => cloneProduct(p)),
+      );
+      mockProductsRepository.save.mockResolvedValue(
+        productsWithoutStock.map((p) => cloneProduct(p)),
+      );
       mockNotificationRepository.save.mockResolvedValue({});
 
       const result = await service.setInactive(false);
@@ -432,7 +475,7 @@ describe('ProductsService', () => {
     });
 
     it('should delete all notifications when clearNotifications is true', async () => {
-      mockProductsRepository.find.mockResolvedValue([]);
+      mockProductsRepository.find.mockResolvedValue([] as Products[]);
 
       await service.setInactive(true);
 
@@ -442,12 +485,32 @@ describe('ProductsService', () => {
     });
 
     it('should return message when no inactive products found', async () => {
-      mockProductsRepository.find.mockResolvedValue([]);
+      mockProductsRepository.find.mockResolvedValue([] as Products[]);
 
       const result = await service.setInactive(false);
 
       expect(result.serverResponseCode).toBe(200);
       expect(result.serverResponseMessage).toBe('No hay productos inactivos.');
+    });
+  });
+
+  describe('createNotificationNoPublicado', () => {
+    it('debe ejecutar la sincronizacion de WooCommerce antes de crear la notificación', async () => {
+      jest
+        .spyOn(service, 'setProductsAsActive')
+        .mockResolvedValue({ serverResponseCode: 200 } as any);
+      mockProductsRepository.find.mockResolvedValueOnce([
+        cloneProduct(),
+      ] as Products[]);
+      mockNotificationRepository.save.mockResolvedValue({});
+
+      const result = await service.createNotificationNoPublicado();
+
+      expect(_woocomerceService.syncForNotifications).toHaveBeenCalled();
+      expect(mockNotificationRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Producto no publicado' }),
+      );
+      expect(result.serverResponseCode).toBe(200);
     });
   });
 
@@ -473,7 +536,9 @@ describe('ProductsService', () => {
         },
       ];
 
-      mockProductsRepository.find.mockResolvedValue(products);
+      mockProductsRepository.find.mockResolvedValue(
+        products.map((p) => cloneProduct(p)) as Products[],
+      );
 
       const result = await service.getInventoryResume();
 
@@ -486,7 +551,7 @@ describe('ProductsService', () => {
     });
 
     it('should exclude deprecated products from inventory', async () => {
-      mockProductsRepository.find.mockResolvedValue([]);
+      mockProductsRepository.find.mockResolvedValue([] as Products[]);
 
       const _result = await service.getInventoryResume();
 
@@ -505,7 +570,9 @@ describe('ProductsService', () => {
         { ...mockProduct, id: 2, stock: 5, activo: false },
       ];
 
-      mockProductsRepository.save.mockResolvedValue(inactiveProducts);
+      mockProductsRepository.save.mockResolvedValue(
+        inactiveProducts.map((p) => cloneProduct(p)),
+      );
       mockNotificationRepository.save.mockResolvedValue({});
 
       const result = await service.setProductsAsActive(inactiveProducts);
@@ -530,7 +597,9 @@ describe('ProductsService', () => {
         { ...mockProduct, id: 2, stock: 10, activo: false },
       ];
 
-      mockProductsRepository.save.mockResolvedValue([products[1]]);
+      mockProductsRepository.save.mockResolvedValue([
+        cloneProduct(products[1]),
+      ]);
 
       await service.setProductsAsActive(products);
 
@@ -545,7 +614,9 @@ describe('ProductsService', () => {
         { ...mockProduct, id: 2, stock: 10, activo: false, deprecado: false },
       ];
 
-      mockProductsRepository.save.mockResolvedValue([products[1]]);
+      mockProductsRepository.save.mockResolvedValue([
+        cloneProduct(products[1]),
+      ]);
 
       await service.setProductsAsActive(products);
 

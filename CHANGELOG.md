@@ -5,6 +5,19 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.7.0] - 2026-04-21
+
+### Agregado
+
+- **`WoocommerceModule`: sincronización de productos con la base de datos**
+  - `ListWoocommerceProductsDto`: `status` ahora tiene default `'any'` (devuelve todos los estados) y valida valores permitidos: `any`, `publish`, `draft`, `pending`, `private`
+  - `WoocommerceService`: inyecta repositorio `Products` para relacionar cada producto de WooCommerce con la BD por `sku` → `cod_interno` o `cod_barras` (con `TRIM`)
+  - Objeto `sync` en cada producto de la respuesta con: `found_in_db`, `db_id`, `price_match`, `woo_price`, `db_price`, `stock_match`, `woo_stock`, `db_stock`
+  - Actualización automática en WooCommerce de precio (`regular_price`) y stock (`stock_quantity`) cuando no coinciden con la BD
+  - Requests de escritura enviados como `POST` con header `X-HTTP-Method-Override: PUT` para compatibilidad con servidores Apache que bloquean el método PUT
+  - Logs con `Logger` de NestJS en cada paso: consulta, SKUs buscados, productos encontrados, desincronizaciones, actualizaciones y resumen final
+- **`WoocommerceModule`**: importa `TypeOrmModule.forFeature([Products])`
+
 ## [1.6.0] - 2026-04-13
 
 ### Agregado

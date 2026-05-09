@@ -5,11 +5,13 @@ import { GetProductsDto } from './dto/get.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { NotFoundException } from '@nestjs/common';
+import { ResponseDto } from 'src/common/dto/response.dto';
 import { Notification } from '../notifications/entities/notification.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MercadoLibreService } from '../mercado-libre/mercado-libre.service';
 import { Injectable } from '@nestjs/common';
 import { GoogleLoggingService } from 'src/common/services/google-logging.service';
+import { WoocommerceService } from '../woocommerce/woocommerce.service';
 
 @Injectable()
 export class ProductsService {
@@ -20,10 +22,11 @@ export class ProductsService {
     private notificationRepository: Repository<Notification>,
     private readonly notificationsService: NotificationsService,
     private mercadoLibreService: MercadoLibreService,
+    private readonly woocommerceService: WoocommerceService,
     private readonly googleLoggingService: GoogleLoggingService,
   ) {}
 
-  async getAllProducts(t: GetProductsDto) {
+  async getAllProducts(t: GetProductsDto): Promise<ResponseDto> {
     const skippedItems = (t.page - 1) * 10;
     const sort = t.sort;
     const columnt: string = t.order;
@@ -93,18 +96,12 @@ export class ProductsService {
     return {
       serverResponseCode: 200,
       serverResponseMessage: 'Productos obtenidos.',
-      data: products,
-      count: count,
+      data: { products, count },
     };
   }
 
-  async getOneProduct(idp: number) {
-    const product = await this.productsRepository.findOne({
-      where: { id: idp },
-    });
-    if (!product) {
-      throw new NotFoundException('Producto no encontrado.');
-    }
+  async getOneProduct(idp: number): Promise<ResponseDto> {
+    const product = await this.findProductOrFail(idp);
     return {
       serverResponseCode: 200,
       serverResponseMessage: 'Producto obtenido.',
@@ -112,12 +109,9 @@ export class ProductsService {
     };
   }
 
-  async createProduct(t: CreateProductDto) {
-    //check if product already exists, by cod_interno or cod_barras
-    const productExists = await this.productsRepository.findOne({
-      where: [{ cod_interno: t.cod_interno }, { cod_barras: t.cod_barras }],
-    });
-    if (productExists) {
+  async createProduct(t: CreateProductDto): Promise<ResponseDto> {
+    // Validar existencia por cod_interno o cod_barras
+    if (await this.existsProductByCodeOrBar(t.cod_interno, t.cod_barras)) {
       return {
         serverResponseCode: 400,
         serverResponseMessage: 'Producto ya existe.',
@@ -158,17 +152,11 @@ export class ProductsService {
 
   //update a product
 
-  async updateProduct(t: UpdateProductDto) {
-    const product = await this.productsRepository.findOne({
-      where: { id: t.id },
-    });
-    if (!product) {
-      throw new NotFoundException('Producto no encontrado.');
-    }
-    const productExists = await this.productsRepository.findOne({
-      where: [{ cod_interno: t.cod_interno }, { cod_barras: t.cod_barras }],
-    });
-    if (productExists && productExists.id !== t.id) {
+  async updateProduct(t: UpdateProductDto): Promise<ResponseDto> {
+    await this.findProductOrFail(t.id);
+    if (
+      await this.existsProductByCodeOrBar(t.cod_interno, t.cod_barras, t.id)
+    ) {
       return {
         serverResponseCode: 400,
         serverResponseMessage: 'Producto ya existe.',
@@ -188,7 +176,10 @@ export class ProductsService {
     // if cod_barras is empty, generate one based on the product id
     if (!t.cod_barras || t.cod_barras === '') {
       const generatedCodBarras = (t.id + 50000).toString();
-      await this.productsRepository.update(t.id, { ...t, cod_barras: generatedCodBarras });
+      await this.productsRepository.update(t.id, {
+        ...t,
+        cod_barras: generatedCodBarras,
+      });
     } else {
       await this.productsRepository.update(t.id, t);
     }
@@ -208,7 +199,7 @@ export class ProductsService {
     };
   }
 
-  async setInactive(clearNotifications?: boolean) {
+  async setInactive(clearNotifications?: boolean): Promise<ResponseDto> {
     // get all products with stock 0 and active true
     // Si clearNotifications es true, eliminar todas las notificaciones
     if (clearNotifications === true) {
@@ -243,14 +234,16 @@ export class ProductsService {
     });
     await this.productsRepository.save(products);
     // create a notification for each product set to inactive
-    products.forEach(async (product) => {
-      const notification = new Notification();
-      notification.title = 'Producto inactivo';
-      notification.description = `El producto ${product.descripcion} ha sido seteado como inactivo.`;
-      notification.readed = false;
-      notification.url = `/articulos/ver/${product.id}`;
-      await this.notificationRepository.save(notification);
-    });
+    await Promise.all(
+      products.map(async (product) => {
+        const notification = new Notification();
+        notification.title = 'Producto inactivo';
+        notification.description = `El producto ${product.descripcion} ha sido seteado como inactivo.`;
+        notification.readed = false;
+        notification.url = `/articulos/ver/${product.id}`;
+        await this.notificationRepository.save(notification);
+      }),
+    );
     // return a message with the amount of products set to inactive
     await this.googleLoggingService.log(
       'Productos procesados como inactivos',
@@ -269,7 +262,27 @@ export class ProductsService {
     };
   }
 
-  async createNotificationNoPublicado() {
+  async createNotificationNoPublicado(): Promise<ResponseDto> {
+    try {
+      const wooSyncResult =
+        await this.woocommerceService.syncForNotifications();
+      await this.googleLoggingService.log(
+        'Sincronización WooCommerce ejecutada al crear notificaciones',
+        wooSyncResult,
+        'INFO',
+        'createNotificationNoPublicado',
+        'products',
+      );
+    } catch (error: unknown) {
+      await this.googleLoggingService.log(
+        'Error ejecutando sincronización WooCommerce al crear notificaciones',
+        { error: error instanceof Error ? error.message : String(error) },
+        'WARNING',
+        'createNotificationNoPublicado',
+        'products',
+      );
+    }
+
     // Primero buscar productos no publicados con stock mayor a 0 y no deprecados
     const unpublishedProducts = await this.productsRepository.find({
       where: {
@@ -393,8 +406,38 @@ export class ProductsService {
     };
   }
 
+  /**
+   * Busca un producto por ID o lanza NotFoundException si no existe
+   */
+  private async findProductOrFail(id: number): Promise<Products> {
+    const product = await this.productsRepository.findOne({ where: { id } });
+    if (!product) {
+      throw new NotFoundException('Producto no encontrado');
+    }
+    return product;
+  }
+
+  /**
+   * Verifica si existe un producto por cod_interno o cod_barras (excluyendo opcionalmente un ID)
+   */
+  private async existsProductByCodeOrBar(
+    cod_interno: string,
+    cod_barras: string,
+    excludeId?: number,
+  ): Promise<boolean> {
+    const where: any[] = [];
+    if (cod_interno) where.push({ cod_interno });
+    if (cod_barras) where.push({ cod_barras });
+    if (where.length === 0) return false;
+    const found = (await this.productsRepository.find({ where })) as Products[];
+    if (excludeId) {
+      return found.some((p) => p.id !== excludeId);
+    }
+    return found.length > 0;
+  }
+
   // get inventory resume
-  async getInventoryResume() {
+  async getInventoryResume(): Promise<ResponseDto> {
     let totalUnits = 0;
     let totalCost = 0;
     let totalSale = 0;
@@ -435,7 +478,7 @@ export class ProductsService {
     };
   }
 
-  async setProductsAsActive(products: Products[]) {
+  async setProductsAsActive(products: Products[]): Promise<ResponseDto> {
     // set products as active, when they have stock greater than 0, and are not active, and are not deprecated
     const productsToUpdate = products.filter(
       (product) => product.stock > 0 && !product.activo && !product.deprecado,
@@ -463,14 +506,16 @@ export class ProductsService {
     await this.productsRepository.save(productsToUpdate);
 
     // create a notification for each product set to active
-    productsToUpdate.forEach(async (product) => {
-      const notification = new Notification();
-      notification.title = 'Producto activo';
-      notification.description = `El producto ${product.descripcion} ha sido seteado como activo.`;
-      notification.readed = false;
-      notification.url = `/articulos/ver/${product.id}`;
-      await this.notificationRepository.save(notification);
-    });
+    await Promise.all(
+      productsToUpdate.map(async (product) => {
+        const notification = new Notification();
+        notification.title = 'Producto activo';
+        notification.description = `El producto ${product.descripcion} ha sido seteado como activo.`;
+        notification.readed = false;
+        notification.url = `/articulos/ver/${product.id}`;
+        await this.notificationRepository.save(notification);
+      }),
+    );
 
     await this.googleLoggingService.log(
       'Productos activados exitosamente',
