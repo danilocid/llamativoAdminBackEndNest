@@ -228,14 +228,14 @@ export class WoocommerceService {
             if (p.sync.price_match === false) {
               await this.createActionNotification(
                 'Producto actualizado en WooCommerce',
-                `Se actualizó el precio del producto ${(p as any).name} (SKU ${(p as any).sku}) en WooCommerce. woo_id=${p.id} permalink=${p.permalink ?? 'sin permalink'}`,
+                `Se actualizó el precio del producto ${(p as any).name} (SKU ${(p as any).sku}) en WooCommerce.`,
                 `/articulos/ver/${(p.sync as any)._dbRef.id}`,
               );
             }
             if (p.sync.stock_match === false) {
               await this.createActionNotification(
                 'Stock actualizado en WooCommerce',
-                `Se actualizó el stock del producto ${(p as any).name} (SKU ${(p as any).sku}) en WooCommerce. woo_id=${p.id} permalink=${p.permalink ?? 'sin permalink'}`,
+                `Se actualizó el stock del producto ${(p as any).name} (SKU ${(p as any).sku}) en WooCommerce.`,
                 `/articulos/ver/${(p.sync as any)._dbRef.id}`,
               );
             }
@@ -339,7 +339,7 @@ export class WoocommerceService {
   }
 
   async syncPublishedProductFromMercadoLibre() {
-    return this.createFirstPublishedMlProductInWoo();
+    return this.syncAllPublishedMlProductsInWoo();
   }
 
   async syncForNotifications() {
@@ -365,38 +365,35 @@ export class WoocommerceService {
     };
   }
 
-  private async createFirstPublishedMlProductInWoo() {
+  /**
+   * Sincroniza todos los productos publicados de MercadoLibre en WooCommerce
+   */
+  private async syncAllPublishedMlProductsInWoo() {
     try {
       const mlListResponse =
         await this.mercadoLibreService.getProductListFromML();
       const publishedItemIds = (mlListResponse.data?.results ?? []) as string[];
-      let lastExistingMatch: Record<string, any> | null = null;
+      const results: any[] = [];
 
       for (const itemId of publishedItemIds) {
         const productDetailsResponse =
           await this.mercadoLibreService.getProductDetailsFromMl(itemId);
         const mlProduct = productDetailsResponse?.data;
-        if (!mlProduct) {
-          continue;
-        }
+        if (!mlProduct) continue;
 
         const candidate =
           this.extractWooCreationCandidateFromMlProduct(mlProduct);
-        if (!candidate) {
-          continue;
-        }
+        if (!candidate) continue;
 
         const dbProduct = await this.findDbProductBySku(candidate.sku);
-        if (!dbProduct) {
-          continue;
-        }
+        if (!dbProduct) continue;
 
         const existingWooProduct = await this.findWooProductBySku(
           candidate.sku,
         );
         if (existingWooProduct) {
           await this.updateWooLinkInDb(dbProduct, existingWooProduct);
-          lastExistingMatch = {
+          results.push({
             created: false,
             reason: 'already_exists',
             sku: candidate.sku,
@@ -405,7 +402,7 @@ export class WoocommerceService {
             woo_permalink: existingWooProduct.permalink ?? null,
             ml_id: mlProduct.id,
             ml_title: candidate.title,
-          };
+          });
           continue;
         }
 
@@ -413,13 +410,10 @@ export class WoocommerceService {
           candidate,
           dbProduct,
         );
-        if (!createdWooProduct) {
-          continue;
-        }
+        if (!createdWooProduct) continue;
 
         await this.updateWooLinkInDb(dbProduct, createdWooProduct);
-
-        return {
+        results.push({
           created: true,
           sku: candidate.sku,
           db_id: dbProduct.id,
@@ -427,14 +421,14 @@ export class WoocommerceService {
           woo_permalink: createdWooProduct.permalink ?? null,
           ml_id: mlProduct.id,
           ml_title: candidate.title,
-        };
+        });
       }
 
-      return lastExistingMatch;
+      return results;
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(
-        `No se pudo crear un producto publicado de MercadoLibre en WooCommerce: ${message}`,
+        `No se pudo sincronizar todos los productos publicados de MercadoLibre en WooCommerce: ${message}`,
       );
       return null;
     }
@@ -548,7 +542,7 @@ export class WoocommerceService {
 
       await this.createActionNotification(
         'Producto creado en WooCommerce',
-        `Se creó el producto ${candidate.title} (SKU ${candidate.sku}) en WooCommerce. woo_id=${response.data?.id ?? 'sin id'} permalink=${response.data?.permalink ?? 'sin permalink'}`,
+        `Se creó el producto ${candidate.title} (SKU ${candidate.sku}) en WooCommerce.`,
         response.data?.permalink ?? `/articulos/ver/${dbProduct.id}`,
       );
 
