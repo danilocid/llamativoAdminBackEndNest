@@ -6,6 +6,7 @@ import { User } from '../auth/entities/user.entity';
 import { GetInventoryDto } from './dto/get.dto';
 import { SaveInventoryDto } from './dto/save-inventory.dto';
 import { SubmitCountDto } from './dto/submit-count.dto';
+import { BulkCountDto } from './dto/bulk-count.dto';
 import { InventoryDetails } from './entities/inventory-details.entity';
 import { Inventory } from './entities/inventory.entity';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -164,8 +165,7 @@ export class InventoryService {
     if (candidates.length === 0) {
       return {
         serverResponseCode: 404,
-        serverResponseMessage:
-          'No hay productos con stock pendiente de contar',
+        serverResponseMessage: 'No hay productos con stock pendiente de contar',
         data: null,
       };
     }
@@ -305,6 +305,148 @@ export class InventoryService {
           costoImp: totalCostoImp,
           costoTotal: totalCostoNeto + totalCostoImp,
         },
+      },
+    };
+  }
+
+  // ─── Lookup por SKU ──────────────────────────────────────────────────────────
+
+  async lookupBySku(sku: string) {
+    if (!sku || sku.trim() === '') {
+      return {
+        serverResponseCode: 400,
+        serverResponseMessage: 'SKU requerido',
+        data: null,
+      };
+    }
+
+    const product = await this.productsRepository
+      .createQueryBuilder('product')
+      .where('product.cod_interno = :sku OR product.cod_barras = :sku', {
+        sku: sku.trim(),
+      })
+      .andWhere('product.activo = :activo', { activo: true })
+      .getOne();
+
+    if (!product) {
+      return {
+        serverResponseCode: 404,
+        serverResponseMessage: 'Producto no encontrado',
+        data: null,
+      };
+    }
+
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: 'Producto encontrado',
+      data: product,
+    };
+  }
+
+  // ─── Conteo múltiple (hasta 10 productos) ────────────────────────────────────
+
+  async submitBulkCount(dto: BulkCountDto, userId: number) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+
+    // Tipo de movimiento para ajuste de conteo (id=1 ajuste entrada, id=2 salida — reutilizamos el tipo existente)
+    const adjustmentType = await this.productMovementTypeRepository.findOne({
+      where: { id: 1 },
+    });
+
+    const now = new Date();
+    let adjustmentCreated = false;
+    let inventory: Inventory | null = null;
+
+    // Calcular totales para la cabecera del ajuste
+    let totalEntradas = 0;
+    let totalSalidas = 0;
+    let totalCostoNeto = 0;
+    let totalCostoImp = 0;
+
+    // Recolectar productos y diferencias
+    const itemsWithDiff: {
+      product: Products;
+      diff: number;
+      stockCounted: number;
+    }[] = [];
+
+    for (const item of dto.items) {
+      const product = await this.productsRepository.findOne({
+        where: { id: item.product_id },
+      });
+      if (!product) continue;
+
+      const diff = item.stock_counted - product.stock;
+      itemsWithDiff.push({ product, diff, stockCounted: item.stock_counted });
+
+      if (diff !== 0) {
+        if (diff > 0) totalEntradas += diff;
+        else totalSalidas += Math.abs(diff);
+        totalCostoNeto += Math.abs(diff) * product.costo_neto;
+        totalCostoImp += Math.abs(diff) * product.costo_imp;
+      }
+    }
+
+    const hasDifferences = itemsWithDiff.some((i) => i.diff !== 0);
+
+    if (hasDifferences) {
+      // Crear ajuste de inventario
+      inventory = new Inventory();
+      inventory.costo_neto = totalCostoNeto;
+      inventory.costo_imp = totalCostoImp;
+      inventory.entradas = totalEntradas;
+      inventory.salidas = totalSalidas;
+      inventory.observaciones = 'Conteo múltiple de inventario';
+      inventory.tipo_movimiento = adjustmentType;
+      inventory.usuario = user;
+      await this.inventoryRepository.save(inventory);
+
+      for (const { product, diff, stockCounted } of itemsWithDiff) {
+        if (diff === 0) continue;
+
+        const entradas = diff > 0 ? diff : 0;
+        const salidas = diff < 0 ? Math.abs(diff) : 0;
+
+        const detail = new InventoryDetails();
+        detail.inventory = inventory;
+        detail.producto = product;
+        detail.costo_neto = Math.abs(diff) * product.costo_neto;
+        detail.costo_imp = Math.abs(diff) * product.costo_imp;
+        detail.entradas = entradas;
+        detail.salidas = salidas;
+        await this.inventoryDetailsRepository.save(detail);
+
+        // Actualizar stock
+        product.stock = stockCounted;
+        if (product.stock < 0) product.stock = 0;
+
+        // Registrar movimiento
+        const movDetail = new ProductMovementDetail();
+        movDetail.producto = product;
+        movDetail.cantidad = diff;
+        movDetail.id_movimiento = inventory.id;
+        movDetail.movimiento = adjustmentType;
+        await this.productMovementDetailRepository.save(movDetail);
+      }
+
+      adjustmentCreated = true;
+    }
+
+    // Actualizar last_cont en todos los productos, independientemente de si hubo diferencias
+    for (const { product } of itemsWithDiff) {
+      product.last_cont = now;
+      await this.productsRepository.save(product);
+    }
+
+    return {
+      serverResponseCode: 201,
+      serverResponseMessage: hasDifferences
+        ? 'Conteo finalizado con diferencias — ajuste de inventario creado'
+        : 'Conteo finalizado sin diferencias — fechas de último conteo actualizadas',
+      data: {
+        adjustmentCreated,
+        inventoryId: inventory?.id ?? null,
+        itemsProcessed: itemsWithDiff.length,
       },
     };
   }

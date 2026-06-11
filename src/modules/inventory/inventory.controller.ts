@@ -14,6 +14,7 @@ import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { GetInventoryDto } from './dto/get.dto';
 import { SaveInventoryDto } from './dto/save-inventory.dto';
 import { SubmitCountDto } from './dto/submit-count.dto';
+import { BulkCountDto } from './dto/bulk-count.dto';
 
 @Controller('inventories')
 @ApiTags('Inventories')
@@ -53,6 +54,22 @@ export class InventoryController {
   @UseGuards(JwtAuthGuard)
   async submitRandomCount(@Body() dto: SubmitCountDto, @Req() req: any) {
     return await this.inventoriesService.submitRandomCount(dto, req.user.id);
+  }
+
+  // lookup product by SKU (cod_interno or cod_barras) for bulk count
+  @Get('lookup-sku')
+  @ApiBearerAuth('jwt')
+  @UseGuards(JwtAuthGuard)
+  async lookupBySku(@Query('sku') sku: string) {
+    return await this.inventoriesService.lookupBySku(sku);
+  }
+
+  // submit bulk count (up to 10 products)
+  @Post('bulk-count')
+  @ApiBearerAuth('jwt')
+  @UseGuards(JwtAuthGuard)
+  async submitBulkCount(@Body() dto: BulkCountDto, @Req() req: any) {
+    return await this.inventoriesService.submitBulkCount(dto, req.user.id);
   }
 
   // get inventory by id

@@ -305,6 +305,7 @@ export class WoocommerceService {
         this.logger.warn(
           `MercadoLibre respondió status=${response.status} buscando SKU=${sku}`,
         );
+        this.logger.debug(`Response data: ${JSON.stringify(response.data)}`);
         return null;
       }
 
@@ -326,6 +327,9 @@ export class WoocommerceService {
       if (detailResponse.status >= 400) {
         this.logger.warn(
           `MercadoLibre respondió status=${detailResponse.status} al obtener detalle id=${itemId}`,
+        );
+        this.logger.debug(
+          `Response data: ${JSON.stringify(detailResponse.data)}`,
         );
         return null;
       }

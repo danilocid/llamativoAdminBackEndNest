@@ -83,6 +83,25 @@ export class MercadoLibreAuthService {
         validateStatus: () => true,
       }),
     );
+
+    if (response.data?.error || !response.data?.access_token) {
+      await this.googleLoggingService.log(
+        'Error al refrescar el token de MercadoLibre',
+        {
+          status: response.status,
+          error: response.data?.error,
+          message: response.data?.message,
+          cause: response.data?.cause,
+        },
+        'ERROR',
+        'getAuthToken',
+        'mercado-libre-auth',
+      );
+      throw new Error(
+        `MercadoLibre error ${response.status}: ${response.data?.message ?? response.data?.error ?? 'Error desconocido'}`,
+      );
+    }
+
     this.saveTokenToDb({
       id: token.id,
       accessToken: response.data.access_token,
