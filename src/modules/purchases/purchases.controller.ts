@@ -7,7 +7,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { PurchasesService } from './purchases.service';
 import { GetPurchasesDto } from './dto/get-purchases.dto';
@@ -40,19 +40,21 @@ export class PurchasesController {
     return await this.purchasesService.getTypes();
   }
 
-  @Post('sync-current-month')
-  async syncCurrentMonthPurchases() {
-    return await this.purchasesService.syncCurrentMonthPurchases();
-  }
+  @Get('sincronizar')
+  @ApiQuery({ name: 'mes', required: false, type: Number, description: 'Mes a sincronizar (1-12). Default: mes actual' })
+  @ApiQuery({ name: 'anio', required: false, type: Number, description: 'Año a sincronizar. Default: año actual' })
+  async sincronizar(
+    @Query('mes') mes?: number,
+    @Query('anio') anio?: number,
+  ) {
+    const now = new Date();
+    const mesFinal = mes || now.getMonth() + 1;
+    const anioFinal = anio || now.getFullYear();
 
-  @Get('api')
-  @ApiBearerAuth('jwt')
-  @UseGuards(JwtAuthGuard)
-  async createPurchaseFromApi(@Query() t: GetPurchasesDto) {
-    this.purchasesService.createPurchaseFromApi(t);
+    this.purchasesService.scrapeAndSavePurchases(mesFinal, anioFinal);
     return {
-      serverResponseCode: 200,
-      serverResponseMessage: 'Purchases created successfully',
+      serverResponseCode: 202,
+      serverResponseMessage: `Sincronización del RCV iniciada para ${mesFinal}/${anioFinal}. El proceso se ejecuta en segundo plano.`,
     };
   }
 

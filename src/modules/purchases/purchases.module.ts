@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { PurchasesController } from './purchases.controller';
 import { PurchasesService } from './purchases.service';
+import { SiiScraperService } from './sii-scraper.service';
 import { PurchasesTypes } from './entities/purchases-types.entity';
 import { Purchases } from './entities/purchases.entity';
 import { Entities } from '../entities/entities/entities.entity';
@@ -21,6 +22,6 @@ import { GoogleLoggingService } from 'src/common/services/google-logging.service
     ]),
   ],
   controllers: [PurchasesController],
-  providers: [PurchasesService, GoogleLoggingService],
+  providers: [PurchasesService, SiiScraperService, GoogleLoggingService],
 })
 export class PurchasesModule {}

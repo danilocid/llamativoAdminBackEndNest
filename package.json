@@ -1,7 +1,7 @@
 {
   "name": "llamativo-admin-back-end",
-  "version": "1.7.0",
-  "description": "Backend para la administración de Llamativo con integración a Mercado Libre, sistema de logging avanzado y sincronización optimizada de productos",
+  "version": "2.0.0",
+  "description": "Backend para la administración de Llamativo con integración a Mercado Libre, sistema de logging avanzado y scraping del RCV del SII con Playwright",
   "author": "Danilo Cid",
   "private": true,
   "license": "UNLICENSED",
@@ -41,6 +41,7 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
+    "playwright": "^1.61.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "typeorm": "^0.3.28"

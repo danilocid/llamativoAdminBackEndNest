@@ -28,7 +28,7 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 
 ## Versión Actual
 
-**v1.6.0** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
+**v2.0.0** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
 
 ## Tecnologías
 
@@ -38,7 +38,7 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 - **MySQL**: 8.x (con mysql2 3.22.0)
 - **JWT**: Para autenticación
 - **Google Cloud Logging**: Sistema de logging centralizado
-- **Axios**: 1.15.0
+- **Playwright**: Scraping del Registro de Compras y Ventas del SII
 - **bcryptjs**: 3.0.3
 - **Jest**: 30.3.0
 - **ESLint**: 10.2.0
@@ -53,8 +53,8 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 - Integración con Mercado Libre (OAuth2, sincronización de productos)
 - Logging centralizado con Google Cloud Platform
 - Sistema de notificaciones
-- Sincronización automática de compras del SII con notificaciones
-- Suite completa de pruebas unitarias (63 tests)
+- Sincronización automática de compras del SII mediante scraping Playwright
+- Suite completa de pruebas unitarias (50 tests)
 - Soporte para productos deprecados
 - Resúmenes de inventario con cálculos de rentabilidad
 
@@ -99,8 +99,7 @@ ML_CLIENT_ID=tu_client_id
 ML_CLIENT_SECRET=tu_client_secret
 ML_REDIRECT_URI=tu_redirect_uri
 
-# SII - BaseAPI (Para obtener compras del SII)
-BASE_API_KEY=sk_your_api_key
+# SII - Scraping RCV (Playwright)
 SII_RUT=tu_rut_empresa
 SII_PASSWORD=tu_password_sii
 ```
@@ -146,10 +145,10 @@ npm run test:e2e
 
 - **AuthService**: 4 tests (login, validaciones, JWT)
 - **ProductsService**: 23 tests (CRUD, inventario, deprecados)
-- **PurchasesService**: 24 tests (CRUD, reporte, sincronización SII)
+- **PurchasesService**: 17 tests (CRUD, reporte, scraping SII)
 - **MercadoLibreService**: 9 tests (sincronización, variaciones)
 - **ProductSyncService**: 21 tests (validación, SKU, lotes)
-- **Total**: 63 tests unitarios
+- **Total**: 50 tests unitarios
 
 ## Estructura del Proyecto
 
@@ -204,6 +203,7 @@ src/
 ### Compras
 
 - `GET /purchases` - Listar compras
+- `GET /purchases/sincronizar` - Sincronizar compras del RCV del SII (scraping Playwright)
 - `POST /purchases/create` - Registrar compra manual
 - `PUT /purchases/:id` - Actualizar compra
 

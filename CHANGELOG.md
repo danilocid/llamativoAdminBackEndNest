@@ -5,6 +5,41 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.0.0] - 2026-06-22
+
+### Agregado
+
+- **Scraper Playwright para el Registro de Compras y Ventas (RCV) del SII**
+  - Nuevo servicio `SiiScraperService` que utiliza Playwright y Chromium para acceder al portal del SII
+  - Login automático en `zeusr.sii.cl` con credenciales de variables de entorno
+  - Navegación directa a `https://www4.sii.cl/consdcvinternetui` (app AngularJS del RCV)
+  - Selección automática de período (mes/año) en los selects del formulario
+  - Extracción de datos desde la tabla resumen y tabla de detalle `#tableCompra`
+  - Creación automática de proveedores (entidades) cuando no existen en la base de datos
+  - Screenshots y HTML de debug guardados en `debug-screenshots/` para diagnóstico
+  - Manejo robusto de errores: el servicio no se detiene si falla un scraping individual
+  - Endpoint `GET /purchases/sincronizar` con parámetros opcionales `mes` y `anio` (default: mes/año actual)
+  - Scraping asíncrono en segundo plano (retorna 202 Accepted)
+  - Sistema de notificaciones para creación de compras, sin datos y errores
+
+### Eliminado
+
+- **API de BaseAPI para compras del SII** (breaking change)
+  - Eliminado método `createPurchaseFromApi()` del `PurchasesService`
+  - Eliminado método `syncCurrentMonthPurchases()` del `PurchasesService`
+  - Eliminado endpoint `GET /purchases/api`
+  - Eliminado endpoint `POST /purchases/sync-current-month`
+  - Eliminada dependencia de `axios` en el módulo de compras
+  - Eliminadas interfaces `BaseApiPurchaseResponse`, `ResumenPorTipo` y `PurchaseApiResponse`
+  - Eliminada variable de entorno `BASE_API_KEY`
+  - Eliminados 7 tests unitarios del API anterior (createPurchaseFromApi, syncCurrentMonthPurchases)
+
+### Técnico
+
+- Dependencia `playwright` agregada con Chromium instalado
+- Tests unitarios: 17 tests para `PurchasesService` (CRUD, reporte, scraping)
+- Build y linter sin errores
+
 ## [1.7.0] - 2026-04-21
 
 ### Agregado
