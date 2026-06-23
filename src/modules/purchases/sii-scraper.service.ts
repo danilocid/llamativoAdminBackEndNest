@@ -35,7 +35,15 @@ export class SiiScraperService {
     try {
       browser = await chromium.launch({
         headless: true,
-        args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+        timeout: 30000,
+        args: [
+          '--no-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--disable-extensions',
+          '--disable-background-networking',
+          '--single-process',
+        ],
       });
 
       const page = await browser.newPage();
