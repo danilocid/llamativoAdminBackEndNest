@@ -27,14 +27,13 @@ export class SiiScraperService {
     try {
       browser = await chromium.launch({
         headless: true,
-        timeout: 30000,
+        timeout: 60000,
         args: [
           '--no-sandbox',
           '--disable-dev-shm-usage',
           '--disable-gpu',
           '--disable-extensions',
           '--disable-background-networking',
-          '--single-process',
         ],
       });
 
