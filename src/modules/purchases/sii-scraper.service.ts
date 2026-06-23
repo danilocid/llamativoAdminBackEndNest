@@ -25,7 +25,7 @@ export class SiiScraperService {
     let browser: Browser | null = null;
 
     try {
-      browser = await chromium.launch({
+      const launchOptions: any = {
         headless: true,
         timeout: 120000,
         args: [
@@ -34,7 +34,13 @@ export class SiiScraperService {
           '--disable-gpu',
           '--disable-extensions',
         ],
-      });
+      };
+
+      if (process.env.CHROME_BIN) {
+        launchOptions.executablePath = process.env.CHROME_BIN;
+      }
+
+      browser = await chromium.launch(launchOptions);
 
       const page = await browser.newPage();
       page.setDefaultTimeout(20000);
