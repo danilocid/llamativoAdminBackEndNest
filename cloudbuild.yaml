@@ -21,7 +21,7 @@ steps:
       - '--concurrency'
       - '1'
       - '--memory'
-      - '2Gi'
+      - '4Gi'
       - '--timeout'
       - '300'
 

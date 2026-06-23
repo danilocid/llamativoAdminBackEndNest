@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { firefox, Browser, Page } from 'playwright';
+import { chromium, Browser, Page } from 'playwright';
 import { PurchaseApiData } from './dto/purchases-api.interface';
 
 @Injectable()
@@ -25,9 +25,15 @@ export class SiiScraperService {
     let browser: Browser | null = null;
 
     try {
-      browser = await firefox.launch({
+      browser = await chromium.launch({
         headless: true,
         timeout: 120000,
+        args: [
+          '--no-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--disable-extensions',
+        ],
       });
 
       const page = await browser.newPage();
