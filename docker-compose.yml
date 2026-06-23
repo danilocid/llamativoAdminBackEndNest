@@ -8,25 +8,6 @@ services:
     ports:
       - "3000:8080"
     environment:
-      - DB_HOST=multitiendallamativo.cl
-      - DB_PORT=3306
-      - DB_NAME=orhanoik_sivig_laravel
-      - DB_USER=orhanoik_sivig_laravel
-      - DB_PASS=${DB_PASS}
-      - JWT_SECRET=${JWT_SECRET}
-      - SII_RUT=${SII_RUT}
-      - SII_PASSWORD=${SII_PASSWORD}
-      - SIMPLE_API_USER=${SIMPLE_API_USER}
-      - SIMPLE_API_PASS=${SIMPLE_API_PASS}
-      - SIMPLE_API_PASS_2=${SIMPLE_API_PASS_2}
-      - SIMPLE_API_RUT_USUARIO=${SIMPLE_API_RUT_USUARIO}
-      - SIMPLE_API_RUT_EMPRESA=${SIMPLE_API_RUT_EMPRESA}
-      - SIMPLE_API_PASS_SII=${SIMPLE_API_PASS_SII}
-      - ML_CLIENT_SECRET=${ML_CLIENT_SECRET}
-      - ML_CLIENT_ID=${ML_CLIENT_ID}
-      - WOO_BASE_URL=${WOO_BASE_URL}
-      - WOO_CONSUMER_KEY=${WOO_CONSUMER_KEY}
-      - WOO_CONSUMER_SECRET=${WOO_CONSUMER_SECRET}
       - PORT=8080
     env_file:
       - .env
