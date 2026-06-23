@@ -18,6 +18,12 @@ steps:
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
+      - '--concurrency'
+      - '1'
+      - '--memory'
+      - '2Gi'
+      - '--timeout'
+      - '300'
 
 images:
   - 'gcr.io/$PROJECT_ID/llamativo-admin-backend:$COMMIT_SHA'

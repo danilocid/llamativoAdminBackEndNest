@@ -1,8 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { chromium, Browser, Page } from 'playwright';
 import { PurchaseApiData } from './dto/purchases-api.interface';
-import * as fs from 'fs';
-import * as path from 'path';
 
 @Injectable()
 export class SiiScraperService {
@@ -13,8 +11,6 @@ export class SiiScraperService {
 
   private readonly RCV_APP_URL = 'https://www4.sii.cl/consdcvinternetui';
 
-  private readonly DEBUG_DIR = path.join(process.cwd(), 'debug-screenshots');
-
   async scrapePurchases(mes: number, anio: number): Promise<PurchaseApiData[]> {
     this.logger.log(`Iniciando scraping RCV SII para ${mes}/${anio}`);
 
@@ -24,10 +20,6 @@ export class SiiScraperService {
     if (!rut || !clave) {
       this.logger.error('Variables de entorno SII_RUT y SII_PASSWORD no configuradas');
       return [];
-    }
-
-    if (!fs.existsSync(this.DEBUG_DIR)) {
-      fs.mkdirSync(this.DEBUG_DIR, { recursive: true });
     }
 
     let browser: Browser | null = null;
@@ -50,20 +42,25 @@ export class SiiScraperService {
       page.setDefaultTimeout(20000);
 
       await this.login(page, rut, clave);
+      this.logger.log(`URL post-login: ${page.url()}`);
+      this.logger.log(`Título post-login: ${await page.title()}`);
+
       await page.goto(this.RCV_APP_URL, { waitUntil: 'networkidle' });
+      this.logger.log(`URL post-RCV: ${page.url()}`);
+      this.logger.log(`Título post-RCV: ${await page.title()}`);
 
       await this.selectPeriod(page, mes, anio);
+      this.logger.log(`URL post-período: ${page.url()}`);
 
       await this.waitForResumenData(page);
-      await this.screenshot(page, '03-resumen-loaded');
 
       const data = await this.extractFromResumenAndDetail(page);
-      await this.screenshot(page, '04-final');
 
       this.logger.log(`Scraping completado, ${data.length} registros extraídos`);
       return data;
     } catch (error) {
       this.logger.error(`Error en scraping SII: ${(error as Error).message}`);
+      this.logger.error(`Stack: ${(error as Error).stack}`);
       return [];
     } finally {
       if (browser) {
@@ -74,26 +71,50 @@ export class SiiScraperService {
 
   private async screenshot(page: Page, name: string): Promise<void> {
     try {
-      const filePath = path.join(this.DEBUG_DIR, `${name}.png`);
-      await page.screenshot({ path: filePath, fullPage: true });
-      this.logger.log(`Screenshot guardado: ${filePath}`);
+      const buffer = await page.screenshot({ fullPage: true });
+      const base64 = buffer.toString('base64');
+      this.logger.log(`SCREENSHOT_${name}=${base64.substring(0, 200)}...`);
+    } catch (e) {
+      this.logger.warn(`No se pudo tomar screenshot ${name}: ${(e as Error).message}`);
+    }
+  }
 
-      const htmlPath = path.join(this.DEBUG_DIR, `${name}.html`);
+  private async logPageContent(page: Page, label: string): Promise<void> {
+    try {
       const html = await page.content();
-      fs.writeFileSync(htmlPath, html, 'utf-8');
-    } catch {
-      // ignore
+      const bodyText = await page.evaluate(() => document.body?.innerText?.substring(0, 1000) || '');
+      this.logger.log(`PAGE_CONTENT_${label}: ${bodyText}`);
+    } catch (e) {
+      this.logger.warn(`No se pudo obtener contenido ${label}: ${(e as Error).message}`);
     }
   }
 
   private async login(page: Page, rut: string, clave: string): Promise<void> {
     this.logger.log('Navegando a página de login SII');
     await page.goto(this.SII_LOGIN_URL, { waitUntil: 'networkidle' });
+    this.logger.log(`URL login page: ${page.url()}`);
 
-    await page.locator('#rutcntr').fill(rut);
+    const rutInput = page.locator('#rutcntr');
+    const rutVisible = await rutInput.isVisible().catch(() => false);
+    if (!rutVisible) {
+      this.logger.error('Input #rutcntr no encontrado en página de login');
+      await this.logPageContent(page, 'LOGIN_PAGE');
+      throw new Error('Login SII: input RUT no encontrado');
+    }
+
+    await rutInput.fill(rut);
     await page.locator('#clave').fill(clave);
     await page.locator('#bt_ingresar').click();
     await page.waitForLoadState('networkidle');
+    this.logger.log(`URL post-click-login: ${page.url()}`);
+
+    const errorEl = page.locator('#textoError');
+    const hasError = await errorEl.isVisible().catch(() => false);
+    if (hasError) {
+      const errorText = await errorEl.innerText();
+      this.logger.error(`Error de login SII: ${errorText}`);
+      throw new Error(`Login SII falló: ${errorText}`);
+    }
     this.logger.log('Login completado');
   }
 
@@ -113,17 +134,37 @@ export class SiiScraperService {
     this.logger.log(`Seleccionando período ${mes}/${anio}`);
 
     const monthSelect = page.locator('#periodoMes');
-    await monthSelect.waitFor({ state: 'visible', timeout: 10000 });
+    const monthVisible = await monthSelect.isVisible().catch(() => false);
+    if (!monthVisible) {
+      this.logger.error('Select #periodoMes no encontrado. HTML de la página:');
+      await this.logPageContent(page, 'NO_MONTH_SELECT');
+      throw new Error('Select #periodoMes no visible');
+    }
+
+    const monthOptions = await monthSelect.locator('option').allTextContents();
+    this.logger.log(`Opciones de mes: ${monthOptions.join(', ')}`);
     await monthSelect.selectOption(mes.toString().padStart(2, '0'));
     this.logger.log(`Mes seleccionado: ${mes}`);
 
     const yearSelect = page.locator('select[ng-model="periodoAnho"]');
-    await yearSelect.waitFor({ state: 'visible', timeout: 10000 });
+    const yearVisible = await yearSelect.isVisible().catch(() => false);
+    if (!yearVisible) {
+      this.logger.error('Select año no encontrado');
+      await this.logPageContent(page, 'NO_YEAR_SELECT');
+      throw new Error('Select año no visible');
+    }
+
+    const yearOptions = await yearSelect.locator('option').allTextContents();
+    this.logger.log(`Opciones de año: ${yearOptions.join(', ')}`);
     await yearSelect.selectOption(String(anio));
     this.logger.log(`Año seleccionado: ${anio}`);
 
     const submitBtn = page.locator('button[type="submit"]:has-text("Consultar")');
-    await submitBtn.waitFor({ state: 'visible', timeout: 10000 });
+    const btnVisible = await submitBtn.isVisible().catch(() => false);
+    if (!btnVisible) {
+      this.logger.error('Botón Consultar no encontrado');
+      throw new Error('Botón Consultar no visible');
+    }
     await submitBtn.click();
     this.logger.log('Botón Consultar clickeado');
   }
@@ -131,14 +172,33 @@ export class SiiScraperService {
   private async waitForResumenData(page: Page): Promise<void> {
     this.logger.log('Esperando datos del resumen...');
 
-    await page.waitForFunction(
-      () => {
-        const rows = document.querySelectorAll('table[ng-if*="resumenRegistro"] tbody tr');
-        return rows.length > 0;
-      },
-      { timeout: 30000 },
-    );
-    this.logger.log('Datos del resumen cargados');
+    try {
+      await page.waitForFunction(
+        () => {
+          const rows = document.querySelectorAll('table[ng-if*="resumenRegistro"] tbody tr');
+          return rows.length > 0;
+        },
+        { timeout: 30000 },
+      );
+      this.logger.log('Datos del resumen cargados');
+
+      const rowCount = await page.locator('table[ng-if*="resumenRegistro"] tbody tr').count();
+      this.logger.log(`Filas encontradas en resumen: ${rowCount}`);
+    } catch (e) {
+      this.logger.error('Timeout esperando datos del resumen. Guardando contenido de página...');
+      await this.logPageContent(page, 'RESUMEN_TIMEOUT');
+
+      const allTables = await page.evaluate(() => {
+        return Array.from(document.querySelectorAll('table')).map(t => ({
+          id: t.id,
+          class: t.className,
+          rows: t.rows.length,
+        }));
+      });
+      this.logger.log(`Tablas en página: ${JSON.stringify(allTables)}`);
+
+      throw new Error('Timeout esperando datos del resumen');
+    }
 
     await this.dismissModal(page);
     await page.waitForTimeout(1000);
