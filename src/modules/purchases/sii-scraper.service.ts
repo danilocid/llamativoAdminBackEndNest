@@ -27,6 +27,7 @@ export class SiiScraperService {
     try {
       browser = await chromium.launch({
         headless: true,
+        executablePath: '/ms-playwright/chromium-1228/chrome-linux/chrome',
         timeout: 120000,
         args: [
           '--no-sandbox',
