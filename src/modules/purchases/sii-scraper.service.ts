@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { chromium, Browser, Page } from 'playwright';
+import { firefox, Browser, Page } from 'playwright';
 import { PurchaseApiData } from './dto/purchases-api.interface';
 
 @Injectable()
@@ -25,16 +25,9 @@ export class SiiScraperService {
     let browser: Browser | null = null;
 
     try {
-      browser = await chromium.launch({
+      browser = await firefox.launch({
         headless: true,
-        timeout: 60000,
-        args: [
-          '--no-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--disable-extensions',
-          '--disable-background-networking',
-        ],
+        timeout: 120000,
       });
 
       const page = await browser.newPage();
@@ -44,7 +37,8 @@ export class SiiScraperService {
       this.logger.log(`URL post-login: ${page.url()}`);
       this.logger.log(`Título post-login: ${await page.title()}`);
 
-      await page.goto(this.RCV_APP_URL, { waitUntil: 'networkidle' });
+      await page.goto(this.RCV_APP_URL, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(5000);
       this.logger.log(`URL post-RCV: ${page.url()}`);
       this.logger.log(`Título post-RCV: ${await page.title()}`);
 
@@ -90,7 +84,7 @@ export class SiiScraperService {
 
   private async login(page: Page, rut: string, clave: string): Promise<void> {
     this.logger.log('Navegando a página de login SII');
-    await page.goto(this.SII_LOGIN_URL, { waitUntil: 'networkidle' });
+    await page.goto(this.SII_LOGIN_URL, { waitUntil: 'domcontentloaded' });
     this.logger.log(`URL login page: ${page.url()}`);
 
     const rutInput = page.locator('#rutcntr');
@@ -104,7 +98,8 @@ export class SiiScraperService {
     await rutInput.fill(rut);
     await page.locator('#clave').fill(clave);
     await page.locator('#bt_ingresar').click();
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(3000);
     this.logger.log(`URL post-click-login: ${page.url()}`);
 
     const errorEl = page.locator('#textoError');
@@ -230,7 +225,7 @@ export class SiiScraperService {
         const detailData = await this.extractDetailTable(page, tipoDocCode, tipoDocName);
         allData.push(...detailData);
 
-        await page.goBack({ waitUntil: 'networkidle' }).catch(() => {});
+        await page.goBack({ waitUntil: 'domcontentloaded' }).catch(() => {});
         await page.waitForTimeout(2000);
         await this.dismissModal(page);
       }
