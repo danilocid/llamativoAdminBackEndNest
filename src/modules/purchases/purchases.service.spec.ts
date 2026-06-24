@@ -62,11 +62,13 @@ describe('PurchasesService', () => {
   const mockPurchaseRepository = {
     find: jest.fn(),
     findOne: jest.fn(),
+    create: jest.fn().mockImplementation((dto) => dto),
     save: jest.fn(),
   };
 
   const mockEntitiesRepository = {
     findOne: jest.fn(),
+    create: jest.fn().mockImplementation((dto) => dto),
     save: jest.fn(),
   };
 

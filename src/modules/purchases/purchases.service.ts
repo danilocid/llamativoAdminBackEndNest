@@ -157,157 +157,106 @@ export class PurchasesService {
 
     for (const purchase of purchasesFromApi) {
       const tipoDTE = parseInt(purchase['Tipo Doc']);
-
       if (isNaN(tipoDTE)) {
-        await this.googleLoggingService.log(
-          'Tipo de documento inválido',
-          { tipoDocString: purchase['Tipo Doc'], folio: purchase.Folio },
-          'WARN',
-          methodName,
-          'purchases',
-        );
-        continue;
-      }
-
-      const tipoDocumento = await this.documentTypeRepository.findOne({
-        where: { id: tipoDTE },
-      });
-
-      if (!tipoDocumento) {
-        await this.googleLoggingService.log(
-          'Tipo de documento no encontrado',
-          { tipoDTE, tipoDocString: purchase['Tipo Doc'] },
-          'ERROR',
-          methodName,
-          'purchases',
-        );
+        this.logger.warn(`Tipo doc inválido: ${purchase['Tipo Doc']}, folio: ${purchase.Folio}`);
         continue;
       }
 
       const folio = parseInt(purchase.Folio);
-
       if (isNaN(folio)) {
-        await this.googleLoggingService.log(
-          'Folio inválido',
-          { folioString: purchase.Folio, tipoDoc: purchase['Tipo Doc'] },
-          'WARN',
-          methodName,
-          'purchases',
-        );
+        this.logger.warn(`Folio inválido: ${purchase.Folio}, tipoDoc: ${purchase['Tipo Doc']}`);
         continue;
       }
-
-      const purchaseExists = await this.purchaseRepository.findOne({
-        where: { documento: folio, tipo_documento: tipoDocumento },
-      });
-
-      if (purchaseExists) {
-        await this.googleLoggingService.log(
-          'La compra ya existe',
-          { purchaseId: purchaseExists.id, documento: purchaseExists.documento },
-          'WARN',
-          methodName,
-          'purchases',
-        );
-        continue;
-      }
-
-      const newPurchase = new Purchases();
-
-      const entity = await this.entitiesRepository.findOne({
-        where: { rut: purchase['RUT Proveedor'] },
-      });
-
-      if (!entity) {
-        const newEntity = new Entities();
-        newEntity.rut = purchase['RUT Proveedor'];
-        newEntity.nombre = purchase['Razon Social'];
-        newEntity.comuna = {
-          id: 204,
-          comuna: 'Quillon',
-          region: { id: 10, region: 'Ñuble' },
-        };
-        newEntity.direccion = 'Sin dirección';
-        newEntity.telefono = 994679847;
-        newEntity.mail = 'cidybadilla@gmail.com';
-        newEntity.tipo = 'P';
-        newEntity.giro = 'Sin giro';
-
-        try {
-          await this.entitiesRepository.save(newEntity);
-        } catch (error) {
-          await this.googleLoggingService.log(
-            'Error al crear la entidad',
-            { entityRut: newEntity.rut, error },
-            'ERROR',
-            methodName,
-            'purchases',
-          );
-        }
-        newPurchase.proveedor = newEntity;
-      } else {
-        newPurchase.proveedor = entity;
-      }
-
-      newPurchase.tipo_documento = tipoDocumento;
-      newPurchase.tipo_compra = await this.purchaseTypeRepository.findOne({
-        where: { tipo_compra: 'Recibido' },
-      });
-      newPurchase.documento = folio;
-
-      const [day, monthStr, yearStr] = purchase['Fecha Docto'].split('/');
-      newPurchase.fecha_documento = new Date(
-        parseInt(yearStr),
-        parseInt(monthStr) - 1,
-        parseInt(day),
-      );
-
-      newPurchase.observaciones = purchase['Tipo Compra'] || '';
-
-      const parseChileanNumber = (val: string): number => {
-        if (!val || val === '0') return 0;
-        return parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0;
-      };
-
-      const montoNeto = parseChileanNumber(purchase['Monto Neto']);
-      const montoExento = parseChileanNumber(purchase['Monto Exento']);
-      const montoIva = parseChileanNumber(purchase['Monto IVA Recuperable']);
-
-      newPurchase.monto_neto_documento = montoNeto + montoExento;
-      newPurchase.monto_imp_documento = montoIva;
-      newPurchase.costo_neto_documento = montoNeto + montoExento;
-      newPurchase.costo_imp_documento = montoIva;
 
       const MAX_RETRIES = 3;
+      let saved = false;
+
       for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
+          const tipoDocumento = await this.documentTypeRepository.findOne({
+            where: { id: tipoDTE },
+          });
+
+          if (!tipoDocumento) {
+            this.logger.warn(`Tipo de documento no encontrado: ${tipoDTE}`);
+            break;
+          }
+
+          const purchaseExists = await this.purchaseRepository.findOne({
+            where: { documento: folio, tipo_documento: tipoDocumento },
+          });
+
+          if (purchaseExists) {
+            this.logger.warn(`Compra ya existe: doc ${folio}, tipo ${tipoDTE}`);
+            break;
+          }
+
+          let entity = await this.entitiesRepository.findOne({
+            where: { rut: purchase['RUT Proveedor'] },
+          });
+
+          if (!entity) {
+            const newEntity = this.entitiesRepository.create({
+              rut: purchase['RUT Proveedor'],
+              nombre: purchase['Razon Social'],
+              comuna: { id: 204, comuna: 'Quillon', region: { id: 10, region: 'Ñuble' } },
+              direccion: 'Sin dirección',
+              telefono: 994679847,
+              mail: 'cidybadilla@gmail.com',
+              tipo: 'P',
+              giro: 'Sin giro',
+            });
+            entity = await this.entitiesRepository.save(newEntity);
+          }
+
+          const tipoCompra = await this.purchaseTypeRepository.findOne({
+            where: { tipo_compra: 'Recibido' },
+          });
+
+          const [day, monthStr, yearStr] = purchase['Fecha Docto'].split('/');
+
+          const parseChileanNumber = (val: string): number => {
+            if (!val || val === '0') return 0;
+            return parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0;
+          };
+
+          const montoNeto = parseChileanNumber(purchase['Monto Neto']);
+          const montoExento = parseChileanNumber(purchase['Monto Exento']);
+          const montoIva = parseChileanNumber(purchase['Monto IVA Recuperable']);
+
+          const newPurchase = this.purchaseRepository.create({
+            proveedor: entity,
+            tipo_documento: tipoDocumento,
+            tipo_compra: tipoCompra,
+            documento: folio,
+            fecha_documento: new Date(parseInt(yearStr), parseInt(monthStr) - 1, parseInt(day)),
+            observaciones: purchase['Tipo Compra'] || '',
+            monto_neto_documento: montoNeto + montoExento,
+            monto_imp_documento: montoIva,
+            costo_neto_documento: montoNeto + montoExento,
+            costo_imp_documento: montoIva,
+          });
+
           const savedPurchase = await this.purchaseRepository.save(newPurchase);
           createdPurchases.push(savedPurchase);
-          await this.googleLoggingService.log(
-            'Compra guardada correctamente',
-            { documento: newPurchase.documento },
-            'INFO',
-            methodName,
-            'purchases',
-          );
           purchasesCount++;
+          saved = true;
+          this.logger.log(`Compra guardada: ${folio}`);
           break;
         } catch (error) {
           const err = error as any;
-          if (err.code === 'ECONNRESET' && attempt < MAX_RETRIES) {
-            this.logger.warn(`ECONNRESET al guardar compra ${newPurchase.documento}, reintento ${attempt}/${MAX_RETRIES}`);
+          if ((err.code === 'ECONNRESET' || err.code === 'PROTOCOL_CONNECTION_LOST') && attempt < MAX_RETRIES) {
+            this.logger.warn(`Error de conexión compra ${folio}, reintento ${attempt}/${MAX_RETRIES}`);
             await new Promise((r) => setTimeout(r, 2000 * attempt));
             continue;
           }
-          await this.googleLoggingService.log(
-            'Error al guardar la compra',
-            { error: err.message || err, documento: newPurchase.documento, attempt },
-            'ERROR',
-            methodName,
-            'purchases',
-          );
+          this.logger.error(`Error guardando compra ${folio}: ${err.message}`);
           break;
         }
+      }
+
+      if (!saved) {
+        this.logger.warn(`Compra no guardada: folio ${folio}`);
       }
     }
 
