@@ -264,34 +264,50 @@ export class PurchasesService {
 
       newPurchase.observaciones = purchase['Tipo Compra'] || '';
 
-      const montoNeto = parseFloat(purchase['Monto Neto']) || 0;
-      const montoExento = parseFloat(purchase['Monto Exento']) || 0;
-      const montoIva = parseFloat(purchase['Monto IVA Recuperable']) || 0;
+      const parseChileanNumber = (val: string): number => {
+        if (!val || val === '0') return 0;
+        return parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0;
+      };
+
+      const montoNeto = parseChileanNumber(purchase['Monto Neto']);
+      const montoExento = parseChileanNumber(purchase['Monto Exento']);
+      const montoIva = parseChileanNumber(purchase['Monto IVA Recuperable']);
 
       newPurchase.monto_neto_documento = montoNeto + montoExento;
       newPurchase.monto_imp_documento = montoIva;
       newPurchase.costo_neto_documento = montoNeto + montoExento;
       newPurchase.costo_imp_documento = montoIva;
 
-      try {
-        const savedPurchase = await this.purchaseRepository.save(newPurchase);
-        createdPurchases.push(savedPurchase);
-        await this.googleLoggingService.log(
-          'Compra guardada correctamente',
-          { documento: newPurchase.documento },
-          'INFO',
-          methodName,
-          'purchases',
-        );
-        purchasesCount++;
-      } catch (error) {
-        await this.googleLoggingService.log(
-          'Error al guardar la compra',
-          { error },
-          'ERROR',
-          methodName,
-          'purchases',
-        );
+      const MAX_RETRIES = 3;
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          const savedPurchase = await this.purchaseRepository.save(newPurchase);
+          createdPurchases.push(savedPurchase);
+          await this.googleLoggingService.log(
+            'Compra guardada correctamente',
+            { documento: newPurchase.documento },
+            'INFO',
+            methodName,
+            'purchases',
+          );
+          purchasesCount++;
+          break;
+        } catch (error) {
+          const err = error as any;
+          if (err.code === 'ECONNRESET' && attempt < MAX_RETRIES) {
+            this.logger.warn(`ECONNRESET al guardar compra ${newPurchase.documento}, reintento ${attempt}/${MAX_RETRIES}`);
+            await new Promise((r) => setTimeout(r, 2000 * attempt));
+            continue;
+          }
+          await this.googleLoggingService.log(
+            'Error al guardar la compra',
+            { error: err.message || err, documento: newPurchase.documento, attempt },
+            'ERROR',
+            methodName,
+            'purchases',
+          );
+          break;
+        }
       }
     }
 
