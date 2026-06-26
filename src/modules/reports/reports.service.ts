@@ -167,6 +167,9 @@ export class ReportsService {
       'reports',
     );
 
+    // Acumulado del año en curso (enero al mes actual)
+    const yearlyData = await this.getYearlyAccumulated(year, month);
+
     return {
       serverResponseCode: 200,
       serverResponseMessage: 'Ventas mensuales obtenidas.',
@@ -187,8 +190,56 @@ export class ReportsService {
         totalCurrentMonthExtraCosts,
         totalPreviousMonthExtraCosts,
         totalPreviousYearExtraCosts,
+        // Acumulado anual
+        totalYear: yearlyData.total,
+        countYear: yearlyData.count,
+        totalCostYear: yearlyData.cost,
+        totalGrossYear: yearlyData.gross,
+        totalExtraCostsYear: yearlyData.extraCosts,
       },
     };
+  }
+
+  async getYearlyAccumulated(year: number, upToMonth: number) {
+    const initialDate = new Date(year, 0, 1, 0, 0, 0);
+    const finalDate = new Date(year, upToMonth, 0, 23, 59, 59);
+
+    const sales = await this.salesRepository.find({
+      where: {
+        fecha: Between(initialDate, finalDate),
+      },
+      relations: [
+        'tipo_documento',
+        'sales_extra_cost_details',
+        'sales_extra_cost_details.costo_extra',
+      ],
+    });
+
+    let total = 0;
+    let count = 0;
+    let cost = 0;
+    let gross = 0;
+    let extraCosts = 0;
+
+    sales.forEach((sale) => {
+      const saleExtraCosts =
+        sale.sales_extra_cost_details?.reduce(
+          (sum, detail) => sum + detail.monto,
+          0,
+        ) || 0;
+
+      total += sale.monto_neto + sale.monto_imp;
+      count += 1;
+      cost += sale.costo_neto + sale.costo_imp;
+      gross +=
+        sale.monto_neto +
+        sale.monto_imp -
+        (sale.costo_neto + sale.costo_imp) -
+        saleExtraCosts;
+      extraCosts += saleExtraCosts;
+    });
+
+    return { total, count, cost, gross, extraCosts };
   }
   async getMonthlySalesData(month: number, year: number) {
     // Get all sales from the given month and year
