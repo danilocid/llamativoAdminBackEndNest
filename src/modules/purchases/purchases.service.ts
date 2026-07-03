@@ -93,7 +93,7 @@ export class PurchasesService {
         this.logger.warn(`No se obtuvieron datos del scraping para ${mes}/${anio}`);
 
         const notification = this.notificationRepository.create({
-          title: 'Sin compras nuevas (scraping)',
+          title: 'No hay compras para el mes en curso',
           description: `No se encontraron compras en el RCV del SII para ${mes}/${anio}`,
           url: '/compras',
         });
@@ -108,12 +108,27 @@ export class PurchasesService {
 
       const result = await this.savePurchasesFromData(scrapedData, scrapedData.length, mes, anio, 'scrapeAndSavePurchases');
 
-      const notification = this.notificationRepository.create({
-        title: 'Scraping RCV completado',
-        description: `Se sincronizaron ${result.count} compras del RCV para ${mes}/${anio}`,
-        url: '/compras',
-      });
-      await this.notificationRepository.save(notification);
+      if (result.count === 0) {
+        const notification = this.notificationRepository.create({
+          title: 'No hay nuevas compras para el mes en curso',
+          description: `No se encontraron nuevas compras para ${mes}/${anio}`,
+          url: '/compras',
+        });
+        await this.notificationRepository.save(notification);
+      } else {
+        for (const purchase of result.purchases) {
+          const tipoDocumento = await this.documentTypeRepository.findOne({
+            where: { id: purchase.tipo_documento?.id },
+          });
+          const tipoNombre = tipoDocumento?.tipo || 'Documento';
+          const notification = this.notificationRepository.create({
+            title: `${tipoNombre} N° ${purchase.documento} registrado`,
+            description: `Compra registrada exitosamente`,
+            url: '/compras',
+          });
+          await this.notificationRepository.save(notification);
+        }
+      }
 
       this.logger.log(`Scraping RCV completado: ${result.count} compras guardadas de ${scrapedData.length} registros extraídos`);
 
