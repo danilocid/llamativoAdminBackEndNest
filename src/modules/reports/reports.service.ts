@@ -1,5 +1,6 @@
 import { InjectRepository } from '@nestjs/typeorm';
 import { Sales } from '../sales/entities/sales.entity';
+import { Purchases } from '../purchases/entities/purchases.entity';
 import { Repository, Between } from 'typeorm';
 import { ReportDataType } from './entities/report-data-type.entity';
 import { ReportDataTypeDto } from './dto/report-data-type.dto';
@@ -15,6 +16,8 @@ export class ReportsService {
     // Inject the Sales entity
     @InjectRepository(Sales)
     private salesRepository: Repository<Sales>,
+    @InjectRepository(Purchases)
+    private purchasesRepository: Repository<Purchases>,
     @InjectRepository(ReportDataType)
     private reportDataTypeRepository: Repository<ReportDataType>,
     @InjectRepository(ReportData)
@@ -170,6 +173,22 @@ export class ReportsService {
     // Acumulado del año en curso (enero al mes actual)
     const yearlyData = await this.getYearlyAccumulated(year, month);
 
+    // Acumulado del año anterior (enero al mismo mes)
+    const previousYearAccumulated = await this.getYearlyAccumulated(year - 1, month);
+
+    // Total de compras del mes (costo neto + impuesto)
+    const purchasesCurrentMonth = await this.getPurchasesTotal(month, year);
+    const purchasesPreviousMonth = await this.getPurchasesTotal(previousMonth, previousYear);
+    const purchasesPreviousYear = await this.getPurchasesTotal(month, year - 1);
+    const purchasesYear = await this.getPurchasesYearlyAccumulated(year, month);
+    const purchasesYearPrev = await this.getPurchasesYearlyAccumulated(year - 1, month);
+
+    // Ganancia neta: ventas totales - costo total facturas de compras
+    const netProfitCurrentMonth = totalCurrentMonth - purchasesCurrentMonth;
+    const netProfitPreviousMonth = totalPreviousMonth - purchasesPreviousMonth;
+    const netProfitPreviousYear = totalPreviousYear - purchasesPreviousYear;
+    const netProfitYear = yearlyData.total - purchasesYear;
+
     return {
       serverResponseCode: 200,
       serverResponseMessage: 'Ventas mensuales obtenidas.',
@@ -196,6 +215,24 @@ export class ReportsService {
         totalCostYear: yearlyData.cost,
         totalGrossYear: yearlyData.gross,
         totalExtraCostsYear: yearlyData.extraCosts,
+        // Acumulado año anterior
+        totalYearPrev: previousYearAccumulated.total,
+        countYearPrev: previousYearAccumulated.count,
+        totalCostYearPrev: previousYearAccumulated.cost,
+        totalGrossYearPrev: previousYearAccumulated.gross,
+        totalExtraCostsYearPrev: previousYearAccumulated.extraCosts,
+        // Compras del mes
+        purchasesCurrentMonth,
+        purchasesPreviousMonth,
+        purchasesPreviousYear,
+        purchasesYear,
+        purchasesYearPrev,
+        // Ganancia neta (ventas - costos facturas de compras)
+        netProfitCurrentMonth,
+        netProfitPreviousMonth,
+        netProfitPreviousYear,
+        netProfitYear,
+        netProfitYearPrev: yearlyData.total - purchasesYearPrev,
       },
     };
   }
@@ -241,6 +278,43 @@ export class ReportsService {
 
     return { total, count, cost, gross, extraCosts };
   }
+
+  async getPurchasesTotal(month: number, year: number) {
+    const initialDate = new Date(year, month - 1, 1, 0, 0, 0);
+    const finalDate = new Date(year, month, 0, 23, 59, 59);
+
+    const purchases = await this.purchasesRepository.find({
+      where: {
+        fecha_documento: Between(initialDate, finalDate),
+      },
+    });
+
+    let total = 0;
+    purchases.forEach((purchase) => {
+      total += purchase.costo_neto_documento + purchase.costo_imp_documento;
+    });
+
+    return total;
+  }
+
+  async getPurchasesYearlyAccumulated(year: number, upToMonth: number) {
+    const initialDate = new Date(year, 0, 1, 0, 0, 0);
+    const finalDate = new Date(year, upToMonth, 0, 23, 59, 59);
+
+    const purchases = await this.purchasesRepository.find({
+      where: {
+        fecha_documento: Between(initialDate, finalDate),
+      },
+    });
+
+    let total = 0;
+    purchases.forEach((purchase) => {
+      total += purchase.costo_neto_documento + purchase.costo_imp_documento;
+    });
+
+    return total;
+  }
+
   async getMonthlySalesData(month: number, year: number) {
     // Get all sales from the given month and year
     // Return the total amount of sales
