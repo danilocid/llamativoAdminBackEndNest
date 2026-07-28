@@ -17,6 +17,7 @@ import { ReceptionsModule } from './modules/receptions/receptions.module';
 import { MercadoLibreModule } from './modules/mercado-libre/mercado-libre.module';
 import { WoocommerceModule } from './modules/woocommerce/woocommerce.module';
 import { GoogleLoggingModule } from './common/services/google-logging.module';
+import { GoogleDriveModule } from './modules/google-drive/google-drive.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { GoogleLoggingModule } from './common/services/google-logging.module';
     SalesModule,
     MercadoLibreModule,
     WoocommerceModule,
+    GoogleDriveModule,
   ],
   controllers: [],
   providers: [

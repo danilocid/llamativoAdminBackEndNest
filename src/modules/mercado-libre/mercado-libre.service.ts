@@ -218,6 +218,136 @@ export class MercadoLibreService {
     };
   }
 
+  async getMe(): Promise<{
+    error?: string;
+    status?: number;
+    data?: any;
+  }> {
+    const token = await this.mercadoLibreAuthService.getAuthToken();
+    const url = 'https://api.mercadolibre.com/users/me';
+
+    const headers = {
+      Authorization: 'Bearer ' + token,
+      'Content-Type': 'application/json',
+    };
+
+    const response = await firstValueFrom(
+      this.httpService.get(url, {
+        validateStatus: () => true,
+        headers: headers,
+      }),
+    );
+
+    return {
+      error: response?.data?.error,
+      status: response?.status,
+      data: response?.data,
+    };
+  }
+
+  async listSales(): Promise<{
+    error?: string;
+    status?: number;
+    data?: any;
+  }> {
+    let response = null;
+
+    const token = await this.mercadoLibreAuthService.getAuthToken();
+
+    const userResponse = await firstValueFrom(
+      this.httpService.get('https://api.mercadolibre.com/users/me', {
+        validateStatus: () => true,
+        headers: {
+          Authorization: 'Bearer ' + token,
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    const sellerId = userResponse.data?.id;
+    if (!sellerId) {
+      return {
+        error: 'No se pudo obtener el ID del vendedor',
+        status: 400,
+        data: null,
+      };
+    }
+
+    const url = `https://api.mercadolibre.com/orders/search?seller=${sellerId}&sort=date_desc&limit=5`;
+
+    const headers = {
+      Authorization: 'Bearer ' + token,
+      'Content-Type': 'application/json',
+    };
+
+    try {
+      response = await firstValueFrom(
+        this.httpService.get(url, {
+          validateStatus: () => true,
+          headers: headers,
+        }),
+      );
+
+      await this.googleLoggingService.log(
+        'Listado de ventas de Mercado Libre',
+        { sellerId, total: response.data?.results?.length ?? 0 },
+        'INFO',
+        'listSales',
+        'mercado-libre',
+      );
+
+      if (response.data?.results?.length > 0) {
+        for (const order of response.data.results) {
+          const shipmentId = order.shipping?.id;
+          if (shipmentId) {
+            try {
+              const shipmentResponse = await firstValueFrom(
+                this.httpService.get(
+                  `https://api.mercadolibre.com/shipments/${shipmentId}`,
+                  {
+                    validateStatus: () => true,
+                    headers: {
+                      Authorization: 'Bearer ' + token,
+                      'Content-Type': 'application/json',
+                    },
+                  },
+                ),
+              );
+              order.shipping = shipmentResponse.data;
+            } catch (error: any) {
+              await this.googleLoggingService.log(
+                'Error al obtener detalle de envío',
+                { shipmentId, error: error.message },
+                'ERROR',
+                'listSales',
+                'mercado-libre',
+              );
+            }
+          }
+        }
+      }
+    } catch (error: any) {
+      await this.googleLoggingService.log(
+        'Error al listar ventas de Mercado Libre',
+        { error: error.message },
+        'ERROR',
+        'listSales',
+        'mercado-libre',
+      );
+      response = {
+        error: error.message,
+        status: error.response?.status,
+        data: null,
+      };
+    }
+
+    return {
+      error: response?.data?.error,
+      status: response?.status,
+      data: response?.data,
+    };
+  }
+
   async validateProductExist(id: string, isVariant: boolean) {
     const product = await this.productsRepository.findOne({
       where: isVariant ? { id_variante_ml: id } : { id_ml: id },

@@ -20,4 +20,9 @@ export class MercadoLibreController {
   async listProducts() {
     return this.mercadoLibreService.listProducts();
   }
+
+  @Get('list-sales')
+  async listSales() {
+    return this.mercadoLibreService.listSales();
+  }
 }

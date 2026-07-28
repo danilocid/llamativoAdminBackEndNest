@@ -5,6 +5,17 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.1.0] - 2026-06-26
+
+### Agregado
+
+- **Reportes mensuales: acumulado año anterior y ganancia neta**
+  - Nuevo método `getPurchasesTotal()` que suma el costo de facturas de compras por mes
+  - Nuevo método `getPurchasesYearlyAccumulated()` para acumulado anual de compras
+  - Campo `purchasesCurrentMonth`, `purchasesPreviousMonth`, `purchasesPreviousYear`, `purchasesYear`, `purchasesYearPrev` en respuesta
+  - Campo `netProfitCurrentMonth`, `netProfitPreviousMonth`, `netProfitPreviousYear`, `netProfitYear`, `netProfitYearPrev` (Ventas - Compras)
+  - Repositorio `Purchases` inyectado en `ReportsModule`
+
 ## [2.0.0] - 2026-06-22
 
 ### Agregado
