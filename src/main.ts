@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { version } from '../package.json';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -41,6 +42,7 @@ async function bootstrap() {
   });
   await app.listen(process.env.PORT || 3000);
   const url = await app.getUrl();
+  Logger.log(`Version: ${version}`, 'Bootstrap');
   Logger.log(
     `Application is running on port: ${process.env.PORT || '3000 - default'}`,
     'Bootstrap',
