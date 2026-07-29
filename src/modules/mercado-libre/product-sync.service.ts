@@ -109,6 +109,29 @@ export class ProductSyncService {
   }
 
   async validateStockAndPrice(product: Products, productDetails: any) {
+    // Solo validar si la publicación está activa
+    if (productDetails.status && productDetails.status !== 'active') {
+      await this.googleLoggingService.log(
+        'Publicación no activa, saltando validación de stock y precio',
+        {
+          productId: product.id,
+          descripcion: product.descripcion,
+          status: productDetails.status,
+        },
+        'INFO',
+        'validateStockAndPrice',
+        'product-sync',
+      );
+
+      await this.createProductNotification(
+        `Publicación no activa: ${product.descripcion}`,
+        `La publicación en Mercado Libre está en estado "${productDetails.status}". Stock y precio no se validan.`,
+        `/articulos/ver/${product.id}`,
+      );
+
+      return { hasDifferences: false, differences: [], skipped: true };
+    }
+
     const differences = [];
 
     // Validar si el stock en la base de datos es diferente al stock de Mercado Libre

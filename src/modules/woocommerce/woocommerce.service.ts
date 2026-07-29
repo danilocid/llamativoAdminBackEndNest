@@ -397,6 +397,13 @@ export class WoocommerceService {
         );
         if (existingWooProduct) {
           await this.updateWooLinkInDb(dbProduct, existingWooProduct);
+
+          await this.createActionNotification(
+            'Producto ya existe en WooCommerce',
+            `El producto ${candidate.title} (SKU ${candidate.sku}) ya existe en WooCommerce. Enlace actualizado.`,
+            `/articulos/ver/${dbProduct.id}`,
+          );
+
           results.push({
             created: false,
             reason: 'already_exists',

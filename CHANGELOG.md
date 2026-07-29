@@ -5,6 +5,26 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.0.1] - 2026-07-28
+
+### Added
+
+- **WooCommerce: notificaciones para cada acción**
+  - Notificación cuando se actualiza precio en WooCommerce
+  - Notificación cuando se actualiza stock en WooCommerce
+  - Notificación cuando producto ya existe en WooCommerce (enlace actualizado)
+  - Notificación cuando se crea producto nuevo en WooCommerce
+
+- **Productos: activación automática con stock**
+  - En `setInactive`, se activan productos con stock > 0 y no deprecados
+
+- **MercadoLibre: validación de publicación activa**
+  - En `validateStockAndPrice`, se verifica que la publicación esté activa antes de validar stock y precio
+  - Si no está activa, se crea notificación y se salta la validación
+
+- **Backend: versión en logs**
+  - Se imprime la versión de `package.json` al iniciar el servidor
+
 ## [2.1.0] - 2026-06-26
 
 ### Agregado
