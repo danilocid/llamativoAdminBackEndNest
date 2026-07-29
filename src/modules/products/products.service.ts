@@ -222,37 +222,39 @@ export class ProductsService {
         'setInactive',
         'products',
       );
-      return {
-        serverResponseCode: 200,
-        serverResponseMessage: 'No hay productos inactivos.',
-        data: null,
-      };
+    } else {
+      // set all products to inactive, set publicado to false and enlace_ml to null
+      products.forEach((product) => {
+        product.activo = false;
+      });
+      await this.productsRepository.save(products);
+      // create a notification for each product set to inactive
+      await Promise.all(
+        products.map(async (product) => {
+          const notification = new Notification();
+          notification.title = 'Producto inactivo';
+          notification.description = `El producto ${product.descripcion} ha sido seteado como inactivo.`;
+          notification.readed = false;
+          notification.url = `/articulos/ver/${product.id}`;
+          await this.notificationRepository.save(notification);
+        }),
+      );
+      await this.googleLoggingService.log(
+        'Productos procesados como inactivos',
+        { count: products.length, clearNotifications },
+        'INFO',
+        'setInactive',
+        'products',
+      );
     }
-    // set all products to inactive, set publicado to false and enlace_ml to null
-    products.forEach((product) => {
-      product.activo = false;
-    });
-    await this.productsRepository.save(products);
-    // create a notification for each product set to inactive
-    await Promise.all(
-      products.map(async (product) => {
-        const notification = new Notification();
-        notification.title = 'Producto inactivo';
-        notification.description = `El producto ${product.descripcion} ha sido seteado como inactivo.`;
-        notification.readed = false;
-        notification.url = `/articulos/ver/${product.id}`;
-        await this.notificationRepository.save(notification);
-      }),
-    );
-    // return a message with the amount of products set to inactive
-    await this.googleLoggingService.log(
-      'Productos procesados como inactivos',
-      { count: products.length, clearNotifications },
-      'INFO',
-      'setInactive',
-      'products',
-    );
 
+    // Activar productos con stock > 0 y no deprecados
+    const productsWithStock = await this.productsRepository.find({
+      where: { stock: Not(0), deprecado: false },
+    });
+    await this.setProductsAsActive(productsWithStock);
+
+    // return a message with the amount of products set to inactive
     return {
       serverResponseCode: 200,
       serverResponseMessage: clearNotifications
