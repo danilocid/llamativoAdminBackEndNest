@@ -32,6 +32,14 @@ export class SalesController {
     return await this.salesService.getExtraCosts();
   }
 
+  // get last extra costs used
+  @Get('extra-costs/last')
+  @ApiBearerAuth('jwt')
+  @UseGuards(JwtAuthGuard)
+  async getLastExtraCosts() {
+    return await this.salesService.getLastExtraCosts();
+  }
+
   // get a sale by id
   @Get(':id')
   @ApiBearerAuth('jwt')

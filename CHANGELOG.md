@@ -5,6 +5,12 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.0.3] - 2026-08-17
+
+### Added
+
+- Endpoint `GET /sales/extra-costs/last` para obtener los últimos costos extra utilizados en ventas
+
 ## [2.0.2] - 2026-07-29
 
 ### Removed

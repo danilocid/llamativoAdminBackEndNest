@@ -265,4 +265,31 @@ export class SalesService {
       data: extraCosts,
     };
   }
+
+  async getLastExtraCosts() {
+    const lastDetails = await this.salesExtraCostsDetailsRepository
+      .createQueryBuilder('detail')
+      .innerJoinAndSelect('detail.costo_extra', 'cost')
+      .orderBy('detail.id', 'DESC')
+      .getMany();
+
+    const lastCostsMap = new Map<number, { id: number; name: string; monto: number }>();
+
+    for (const detail of lastDetails) {
+      const costId = detail.costo_extra.id;
+      if (!lastCostsMap.has(costId)) {
+        lastCostsMap.set(costId, {
+          id: costId,
+          name: detail.costo_extra.name,
+          monto: detail.monto,
+        });
+      }
+    }
+
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: 'Últimos costos extra obtenidos.',
+      data: Array.from(lastCostsMap.values()),
+    };
+  }
 }

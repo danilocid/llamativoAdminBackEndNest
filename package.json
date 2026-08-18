@@ -1,6 +1,6 @@
 {
   "name": "llamativo-admin-back-end",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Backend para la administración de Llamativo con integración a Mercado Libre, sistema de logging avanzado y scraping del RCV del SII con Playwright",
   "author": "Danilo Cid",
   "private": true,
