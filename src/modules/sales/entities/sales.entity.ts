@@ -11,6 +11,7 @@ import { DocumentType } from '../../common/entities/document_type.entity';
 import { Entities } from 'src/modules/entities/entities/entities.entity';
 import { PaymentMethod } from 'src/modules/common/entities/payment_method.entity';
 import { SalesExtraCostDetails } from './sales-extra-cost-details.entity';
+import { SalesDetails } from './sales-details.entity';
 
 @Entity('ventas')
 export class Sales {
@@ -56,4 +57,7 @@ export class Sales {
 
   @OneToMany(() => SalesExtraCostDetails, (extraCost) => extraCost.venta)
   sales_extra_cost_details: SalesExtraCostDetails[];
+
+  @OneToMany(() => SalesDetails, (detail) => detail.venta)
+  sales_details: SalesDetails[];
 }

@@ -266,10 +266,12 @@ export class SalesService {
     };
   }
 
-  async getLastExtraCosts() {
+  async getLastExtraCostsByProduct(productId: number) {
     const lastDetails = await this.salesExtraCostsDetailsRepository
       .createQueryBuilder('detail')
       .innerJoinAndSelect('detail.costo_extra', 'cost')
+      .innerJoin('detail.venta', 'venta')
+      .innerJoin('venta.sales_details', 'saleDetail', 'saleDetail.articulo = :productId', { productId })
       .orderBy('detail.id', 'DESC')
       .getMany();
 
@@ -288,7 +290,7 @@ export class SalesService {
 
     return {
       serverResponseCode: 200,
-      serverResponseMessage: 'Últimos costos extra obtenidos.',
+      serverResponseMessage: 'Últimos costos extra del producto obtenidos.',
       data: Array.from(lastCostsMap.values()),
     };
   }

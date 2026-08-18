@@ -9,7 +9,7 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Added
 
-- Endpoint `GET /sales/extra-costs/last` para obtener los últimos costos extra utilizados en ventas
+- Endpoint `GET /sales/extra-costs/last/:productId` para obtener los últimos costos extra de una venta que contuvo un producto específico
 
 ## [2.0.2] - 2026-07-29
 

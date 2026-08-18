@@ -32,12 +32,12 @@ export class SalesController {
     return await this.salesService.getExtraCosts();
   }
 
-  // get last extra costs used
-  @Get('extra-costs/last')
+  // get last extra costs used for a specific product
+  @Get('extra-costs/last/:productId')
   @ApiBearerAuth('jwt')
   @UseGuards(JwtAuthGuard)
-  async getLastExtraCosts() {
-    return await this.salesService.getLastExtraCosts();
+  async getLastExtraCostsByProduct(@Param('productId') productId: number) {
+    return await this.salesService.getLastExtraCostsByProduct(productId);
   }
 
   // get a sale by id
