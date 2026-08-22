@@ -13,7 +13,7 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Changed
 
-- Endpoint `GET /products/inactive` ahora acepta parámetro `skipSync` para omitir sincronización con MercadoLibre y notificaciones de diferencias
+- Endpoint `GET /products/inactive` ahora acepta parámetro `skipNoPublicadoNotification` para omitir la notificación de "producto no publicado" manteniendo la sincronización
 
 ## [2.0.2] - 2026-07-29
 

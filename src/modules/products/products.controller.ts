@@ -107,17 +107,17 @@ export class ProductsController {
     example: false,
   })
   @ApiQuery({
-    name: 'skipSync',
-    description: 'Si es true, omite la sincronización con MercadoLibre y las notificaciones de diferencias',
+    name: 'skipNoPublicadoNotification',
+    description: 'Si es true, omite la notificación de "producto no publicado"',
     required: false,
     type: Boolean,
     example: false,
   })
   async setInactive(
     @Query('clearNotifications') clearNotifications?: boolean,
-    @Query('skipSync') skipSync?: boolean,
+    @Query('skipNoPublicadoNotification') skipNoPublicadoNotification?: boolean,
   ): Promise<ResponseDto> {
-    return await this.productsService.setInactive(clearNotifications, skipSync);
+    return await this.productsService.setInactive(clearNotifications, skipNoPublicadoNotification);
   }
 
   // get inventory resume

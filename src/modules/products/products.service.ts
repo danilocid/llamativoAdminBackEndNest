@@ -199,7 +199,7 @@ export class ProductsService {
     };
   }
 
-  async setInactive(clearNotifications?: boolean, skipSync?: boolean): Promise<ResponseDto> {
+  async setInactive(clearNotifications?: boolean, skipNoPublicadoNotification?: boolean): Promise<ResponseDto> {
     // get all products with stock 0 and active true
     // Si clearNotifications es true, eliminar todas las notificaciones
     if (clearNotifications === true) {
@@ -208,10 +208,10 @@ export class ProductsService {
       await this.notificationsService.deleteReadedNotifications();
     }
 
-    if (!skipSync) {
+    if (!skipNoPublicadoNotification) {
       await this.createNotificationNoPublicado();
-      await this.mercadoLibreService.listProducts();
     }
+    await this.mercadoLibreService.listProducts();
 
     // get all products with stock 0 and active true, but not deprecated
     const products = await this.productsRepository.find({
@@ -245,7 +245,7 @@ export class ProductsService {
       );
       await this.googleLoggingService.log(
         'Productos procesados como inactivos',
-        { count: products.length, clearNotifications, skipSync },
+        { count: products.length, clearNotifications, skipNoPublicadoNotification },
         'INFO',
         'setInactive',
         'products',
