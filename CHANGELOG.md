@@ -11,6 +11,10 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
 - Endpoint `GET /sales/extra-costs/last/:productId` para obtener los últimos costos extra de una venta que contuvo un producto específico
 
+### Changed
+
+- Endpoint `GET /products/inactive` ahora acepta parámetro `skipSync` para omitir sincronización con MercadoLibre y notificaciones de diferencias
+
 ## [2.0.2] - 2026-07-29
 
 ### Removed

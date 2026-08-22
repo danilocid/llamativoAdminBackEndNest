@@ -98,7 +98,7 @@ export class ProductsController {
   /**
    * Marca como inactivos los productos con stock 0 y opcionalmente elimina notificaciones.
    */
-  @Get('inactive')
+   @Get('inactive')
   @ApiQuery({
     name: 'clearNotifications',
     description: 'Si es true, elimina todas las notificaciones',
@@ -106,10 +106,18 @@ export class ProductsController {
     type: Boolean,
     example: false,
   })
+  @ApiQuery({
+    name: 'skipSync',
+    description: 'Si es true, omite la sincronización con MercadoLibre y las notificaciones de diferencias',
+    required: false,
+    type: Boolean,
+    example: false,
+  })
   async setInactive(
     @Query('clearNotifications') clearNotifications?: boolean,
+    @Query('skipSync') skipSync?: boolean,
   ): Promise<ResponseDto> {
-    return await this.productsService.setInactive(clearNotifications);
+    return await this.productsService.setInactive(clearNotifications, skipSync);
   }
 
   // get inventory resume
