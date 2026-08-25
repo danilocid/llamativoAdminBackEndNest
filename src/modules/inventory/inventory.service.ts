@@ -159,6 +159,8 @@ export class InventoryService {
     const candidates = await this.productsRepository
       .createQueryBuilder('product')
       .where('product.stock > 0')
+      .andWhere('product.activo = :isActive', { isActive: true })
+      .andWhere('product.deprecado = :isDeprecated', { isDeprecated: false })
       .andWhere('product.last_cont < :oneWeekAgo', { oneWeekAgo })
       .getMany();
 
