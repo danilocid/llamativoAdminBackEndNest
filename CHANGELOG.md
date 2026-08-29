@@ -10,10 +10,15 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 ### Added
 
 - Endpoint `GET /sales/extra-costs/last/:productId` para obtener los últimos costos extra de una venta que contuvo un producto específico
+- Límite de 30 notificaciones máximo, eliminando las más antiguas en orden cronológico
 
 ### Changed
 
 - Endpoint `GET /products/inactive` ahora acepta parámetro `skipNoPublicadoNotification` para omitir la notificación de "producto no publicado" manteniendo la sincronización
+
+### Fixed
+
+- Conteo aleatorio ahora excluye productos deprecados e inactivos
 
 ## [2.0.2] - 2026-07-29
 

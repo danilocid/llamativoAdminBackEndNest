@@ -28,7 +28,7 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 
 ## Versión Actual
 
-**v2.0.0** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
+**v2.0.3** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
 
 ## Tecnologías
 
@@ -190,7 +190,7 @@ src/
 - `POST /products` - Crear producto
 - `PUT /products` - Actualizar producto
 - `GET /products/inventory/resume` - Resumen de inventario
-- `POST /products/set-inactive` - Marcar productos sin stock como inactivos
+- `GET /products/inactive` - Marcar productos sin stock como inactivos (parámetro `skipNoPublicadoNotification` para omitir notificación)
 - `POST /products/set-active` - Activar productos con stock
 
 ### Entidades
@@ -212,6 +212,8 @@ src/
 - `GET /sales` - Listar ventas
 - `POST /sales` - Registrar venta
 - `GET /sales/:id` - Obtener detalle de venta
+- `GET /sales/extra-costs` - Listar tipos de costos extra
+- `GET /sales/extra-costs/last/:productId` - Obtener últimos costos extra por producto
 
 ### Mercado Libre
 
