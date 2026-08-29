@@ -37,6 +37,9 @@ export class NotificationsService {
   async createNotification(notification: CreateNotificationDto) {
     notification = await this.notificationRepository.save(notification);
 
+    // Limit notifications to 30 max
+    await this.limitNotifications();
+
     return {
       serverResponseCode: 200,
       serverResponseMessage: 'Notificación creada.',
@@ -65,6 +68,34 @@ export class NotificationsService {
       'deleteReadedNotifications',
       'notifications',
     );
+
+    // Limit notifications to 30 max
+    await this.limitNotifications();
+  }
+
+  async limitNotifications() {
+    const MAX_NOTIFICATIONS = 30;
+
+    const count = await this.notificationRepository.count();
+    if (count > MAX_NOTIFICATIONS) {
+      const notificationsToDelete = await this.notificationRepository.find({
+        order: { createdAt: 'ASC' },
+        take: count - MAX_NOTIFICATIONS,
+      });
+
+      if (notificationsToDelete.length > 0) {
+        const idsToDelete = notificationsToDelete.map((n) => n.id);
+        await this.notificationRepository.delete(idsToDelete);
+
+        await this.googleLoggingService.log(
+          'Limit notifications exceeded, deleted oldest',
+          { deleted: idsToDelete.length, remaining: MAX_NOTIFICATIONS },
+          'WARNING',
+          'limitNotifications',
+          'notifications',
+        );
+      }
+    }
   }
 
   async markAsReaded(id: number) {
