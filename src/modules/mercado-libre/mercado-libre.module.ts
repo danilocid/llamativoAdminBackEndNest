@@ -3,6 +3,7 @@ import { MercadoLibreController } from './mercado-libre.controller';
 import { MercadoLibreService } from './mercado-libre.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MercadoLibreToken } from './entities/mercado-libre.entity';
+import { VentaMl } from './entities/venta-ml.entity';
 import { HttpModule } from '@nestjs/axios';
 import { GoogleLoggingService } from 'src/common/services/google-logging.service';
 import { Products } from '../products/entities/products.entity';
@@ -13,7 +14,7 @@ import { ProductSyncService } from './product-sync.service';
 @Module({
   imports: [
     HttpModule,
-    TypeOrmModule.forFeature([MercadoLibreToken, Products, Notification]),
+    TypeOrmModule.forFeature([MercadoLibreToken, Products, Notification, VentaMl]),
   ],
   controllers: [MercadoLibreController],
   providers: [

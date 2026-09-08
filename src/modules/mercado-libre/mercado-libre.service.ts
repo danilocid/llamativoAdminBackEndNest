@@ -6,6 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Products } from '../products/entities/products.entity';
 import { Notification } from '../notifications/entities/notification.entity';
+import { VentaMl } from './entities/venta-ml.entity';
 import { MercadoLibreAuthService } from './mercado-libre-auth.service';
 import { ProductSyncService } from './product-sync.service';
 @Injectable()
@@ -14,11 +15,13 @@ export class MercadoLibreService {
     private readonly googleLoggingService: GoogleLoggingService,
     private readonly httpService: HttpService,
     private readonly mercadoLibreAuthService: MercadoLibreAuthService,
-    private readonly productSyncService: ProductSyncService, // Nuevo servicio
+    private readonly productSyncService: ProductSyncService,
     @InjectRepository(Products)
     private readonly productsRepository: Repository<Products>,
     @InjectRepository(Notification)
     private readonly notificationRepository: Repository<Notification>,
+    @InjectRepository(VentaMl)
+    private readonly ventaMlRepository: Repository<VentaMl>,
   ) {}
 
   async listProducts() {
@@ -500,5 +503,181 @@ export class MercadoLibreService {
     }
 
     return productFromDB;
+  }
+
+  async syncSales() {
+    const token = await this.mercadoLibreAuthService.getAuthToken();
+
+    const userResponse = await firstValueFrom(
+      this.httpService.get('https://api.mercadolibre.com/users/me', {
+        validateStatus: () => true,
+        headers: {
+          Authorization: 'Bearer ' + token,
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    const sellerId = userResponse.data?.id;
+    if (!sellerId) {
+      return {
+        serverResponseCode: 400,
+        serverResponseMessage: 'No se pudo obtener el ID del vendedor',
+        data: null,
+      };
+    }
+
+    const url = `https://api.mercadolibre.com/orders/search?seller=${sellerId}&sort=date_desc&limit=50`;
+
+    const headers = {
+      Authorization: 'Bearer ' + token,
+      'Content-Type': 'application/json',
+    };
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(url, { validateStatus: () => true, headers }),
+      );
+
+      if (!response.data?.results?.length) {
+        return {
+          serverResponseCode: 200,
+          serverResponseMessage: 'No hay órdenes para sincronizar',
+          data: { total: 0, nuevas: 0, actualizadas: 0 },
+        };
+      }
+
+      let nuevas = 0;
+      let actualizadas = 0;
+
+      for (const order of response.data.results) {
+        const shipmentId = order.shipping?.id;
+        let shipmentData = null;
+
+        if (shipmentId) {
+          try {
+            const shipmentResponse = await firstValueFrom(
+              this.httpService.get(
+                `https://api.mercadolibre.com/shipments/${shipmentId}`,
+                {
+                  validateStatus: () => true,
+                  headers,
+                },
+              ),
+            );
+            shipmentData = shipmentResponse.data;
+          } catch (error: any) {
+            await this.googleLoggingService.log(
+              'Error al obtener detalle de envío en syncSales',
+              { shipmentId, error: error.message },
+              'WARNING',
+              'syncSales',
+              'mercado-libre',
+            );
+          }
+        }
+
+        const productos = (order.order_items || []).map((item: any) => ({
+          id_ml: item.item?.id || '',
+          titulo: item.item?.title || '',
+          cantidad: item.quantity || 1,
+          precio: Math.round((item.unit_price || 0) * (100 / 119)),
+        }));
+
+        const montoTotal = Math.round((order.total_amount || 0) * (100 / 119));
+        const costoEnvio = shipmentData?.shipping_option?.cost
+          ? Math.round(shipmentData.shipping_option.cost * (100 / 119))
+          : null;
+
+        const existing = await this.ventaMlRepository.findOne({
+          where: { id_orden_ml: String(order.id) },
+        });
+
+        if (existing) {
+          existing.estado = order.status;
+          existing.fecha_sync = new Date();
+          existing.productos = productos;
+          existing.monto_total = montoTotal;
+          existing.costo_envio = costoEnvio;
+          await this.ventaMlRepository.save(existing);
+          actualizadas++;
+        } else {
+          const ventaMl = new VentaMl();
+          ventaMl.id_orden_ml = String(order.id);
+          ventaMl.id_envio_ml = shipmentId ? String(shipmentId) : null;
+          ventaMl.estado = order.status;
+          ventaMl.comprador_nombre =
+            order.buyer?.first_name + ' ' + order.buyer?.last_name;
+          ventaMl.comprador_email = order.buyer?.email || null;
+          ventaMl.productos = productos;
+          ventaMl.monto_total = montoTotal;
+          ventaMl.moneda = order.currency_id || 'CLP';
+          ventaMl.costo_envio = costoEnvio;
+          ventaMl.fecha_venta_ml = new Date(order.date_created);
+          ventaMl.fecha_sync = new Date();
+          await this.ventaMlRepository.save(ventaMl);
+          nuevas++;
+        }
+      }
+
+      await this.googleLoggingService.log(
+        'Sincronización de ventas ML completada',
+        { total: response.data.results.length, nuevas, actualizadas },
+        'INFO',
+        'syncSales',
+        'mercado-libre',
+      );
+
+      return {
+        serverResponseCode: 200,
+        serverResponseMessage: 'Ventas sincronizadas correctamente',
+        data: { total: response.data.results.length, nuevas, actualizadas },
+      };
+    } catch (error: any) {
+      await this.googleLoggingService.log(
+        'Error al sincronizar ventas ML',
+        { error: error.message },
+        'ERROR',
+        'syncSales',
+        'mercado-libre',
+      );
+      return {
+        serverResponseCode: 500,
+        serverResponseMessage: 'Error al sincronizar ventas: ' + error.message,
+        data: null,
+      };
+    }
+  }
+
+  async getVentasMl(page = 1, estado?: string, asociada?: string) {
+    const query = this.ventaMlRepository.createQueryBuilder('venta_ml');
+
+    if (estado) {
+      query.andWhere('venta_ml.estado = :estado', { estado });
+    }
+
+    if (asociada === 'true') {
+      query.andWhere('venta_ml.venta_id IS NOT NULL');
+    } else if (asociada === 'false') {
+      query.andWhere('venta_ml.venta_id IS NULL');
+    }
+
+    query.orderBy('venta_ml.fecha_venta_ml', 'DESC');
+
+    const total = await query.getCount();
+    const totalPages = Math.ceil(total / 10);
+    const data = await query
+      .skip((page - 1) * 10)
+      .take(10)
+      .getMany();
+
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: 'Ventas ML obtenidas',
+      data,
+      total,
+      page,
+      totalPages,
+    };
   }
 }

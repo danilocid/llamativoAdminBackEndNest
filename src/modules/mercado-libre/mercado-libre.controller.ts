@@ -25,4 +25,22 @@ export class MercadoLibreController {
   async listSales() {
     return this.mercadoLibreService.listSales();
   }
+
+  @Get('sync-sales')
+  async syncSales() {
+    return this.mercadoLibreService.syncSales();
+  }
+
+  @Get('ventas-ml')
+  async getVentasMl(
+    @Query('page') page?: number,
+    @Query('estado') estado?: string,
+    @Query('asociada') asociada?: string,
+  ) {
+    return this.mercadoLibreService.getVentasMl(
+      page || 1,
+      estado,
+      asociada,
+    );
+  }
 }
