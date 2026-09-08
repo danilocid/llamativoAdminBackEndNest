@@ -1,0 +1,15 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.pi
+    container_name: llamativo-admin-backend-dev
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    env_file:
+      - .env
+    environment:
+      PORT: "8080"
+      ENV: dev
+    shm_size: '2gb'
