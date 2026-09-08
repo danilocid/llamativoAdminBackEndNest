@@ -273,13 +273,13 @@ export class MercadoLibreService {
       };
     }
 
-    const url = `https://api.mercadolibre.com/orders/search?seller=${sellerId}&sort=date_desc&limit=5`;
+    const url = `https://api.mercadolibre.com/orders/search?seller=${sellerId}&sort=date_desc&limit=25`;
 
     const headers = {
       Authorization: 'Bearer ' + token,
       'Content-Type': 'application/json',
     };
-
+    let newData = [];
     try {
       response = await firstValueFrom(
         this.httpService.get(url, {
@@ -314,6 +314,12 @@ export class MercadoLibreService {
                 ),
               );
               order.shipping = shipmentResponse.data;
+              delete order.payments;
+              delete order.fulfilled;
+              delete order.taxes;
+              delete order.expiration_date;
+              delete order.order_request;
+              delete order.feedback;
             } catch (error: any) {
               await this.googleLoggingService.log(
                 'Error al obtener detalle de envío',
@@ -324,6 +330,11 @@ export class MercadoLibreService {
               );
             }
           }
+          console.log(newData.includes(shipmentId));
+          newData.push({
+            idShipment: shipmentId,
+            fulfilled: order.fulfilled,
+          });
         }
       }
     } catch (error: any) {
@@ -344,7 +355,10 @@ export class MercadoLibreService {
     return {
       error: response?.data?.error,
       status: response?.status,
-      data: response?.data,
+      data: {
+        mlData: response.data?.results,
+        newData,
+      },
     };
   }
 
