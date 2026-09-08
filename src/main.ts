@@ -18,6 +18,7 @@ async function bootstrap() {
       'http://localhost:4200',
       'https://localhost:4200',
       'https://llamativo-admin.web.app',
+      'http://192.168.2.41:4200',
     ],
     credentials: true,
   });
