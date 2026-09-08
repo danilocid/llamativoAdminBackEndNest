@@ -6,7 +6,7 @@ services:
     container_name: llamativo-admin-backend-dev
     restart: unless-stopped
     ports:
-      - "3000:8080"
+      - "3001:8080"
     environment:
       PORT: "8080"
       ENV: dev
@@ -23,4 +23,4 @@ services:
       WOO_BASE_URL: ${WOO_BASE_URL}
       WOO_CONSUMER_KEY: ${WOO_CONSUMER_KEY}
       WOO_CONSUMER_SECRET: ${WOO_CONSUMER_SECRET}
-    shm_size: '2gb'
+    shm_size: "2gb"
