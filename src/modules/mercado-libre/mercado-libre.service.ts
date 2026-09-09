@@ -7,6 +7,7 @@ import { Repository } from 'typeorm';
 import { Products } from '../products/entities/products.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { VentaMl } from './entities/venta-ml.entity';
+import { DetalleVentaMl } from './entities/detalle-venta-ml.entity';
 import { MercadoLibreAuthService } from './mercado-libre-auth.service';
 import { ProductSyncService } from './product-sync.service';
 @Injectable()
@@ -22,6 +23,8 @@ export class MercadoLibreService {
     private readonly notificationRepository: Repository<Notification>,
     @InjectRepository(VentaMl)
     private readonly ventaMlRepository: Repository<VentaMl>,
+    @InjectRepository(DetalleVentaMl)
+    private readonly detalleVentaMlRepository: Repository<DetalleVentaMl>,
   ) {}
 
   async listProducts() {
@@ -589,40 +592,29 @@ export class MercadoLibreService {
           : null;
 
         const shipmentIdStr = String(shipmentId);
-        const existing = await this.ventaMlRepository.findOne({
+
+        // Buscar si ya existe una venta con este envío
+        let ventaMl = await this.ventaMlRepository.findOne({
           where: { id_envio_ml: shipmentIdStr },
         });
 
-        if (existing) {
-          // Acumular órdenes y productos si ya existe
-          const ordenesExistentes = existing.id_orden_ml.split(',').map(s => s.trim());
-          if (!ordenesExistentes.includes(String(order.id))) {
-            existing.id_orden_ml = existing.id_orden_ml + ',' + order.id;
-          }
-
-          const productosExistentes = Array.isArray(existing.productos) ? existing.productos : [];
-          const nuevosProductos = productos.filter(
-            (p) => !productosExistentes.some((pe) => pe.id_ml === p.id_ml),
-          );
-          existing.productos = [...productosExistentes, ...nuevosProductos];
-
-          existing.estado = order.status;
-          existing.fecha_sync = new Date();
-          existing.monto_total = existing.monto_total + montoTotal;
+        if (ventaMl) {
+          // Actualizar venta existente
+          ventaMl.estado = order.status;
+          ventaMl.fecha_sync = new Date();
           if (costoEnvio) {
-            existing.costo_envio = (existing.costo_envio || 0) + costoEnvio;
+            ventaMl.costo_envio = (ventaMl.costo_envio || 0) + costoEnvio;
           }
-          await this.ventaMlRepository.save(existing);
+          await this.ventaMlRepository.save(ventaMl);
           actualizadas++;
         } else {
-          const ventaMl = new VentaMl();
+          // Crear nueva venta por envío
+          ventaMl = new VentaMl();
           ventaMl.id_envio_ml = shipmentIdStr;
-          ventaMl.id_orden_ml = String(order.id);
           ventaMl.estado = order.status;
           ventaMl.comprador_nombre =
             order.buyer?.first_name + ' ' + order.buyer?.last_name;
           ventaMl.comprador_email = order.buyer?.email || null;
-          ventaMl.productos = productos;
           ventaMl.monto_total = montoTotal;
           ventaMl.moneda = order.currency_id || 'CLP';
           ventaMl.costo_envio = costoEnvio;
@@ -631,6 +623,29 @@ export class MercadoLibreService {
           await this.ventaMlRepository.save(ventaMl);
           nuevas++;
         }
+
+        // Crear o actualizar detalle de orden (siempre, porque una venta puede tener múltiples órdenes)
+        const ordenId = String(order.id);
+        let detalle = await this.detalleVentaMlRepository.findOne({
+          where: { id_orden_ml: ordenId },
+        });
+
+        if (!detalle) {
+          detalle = new DetalleVentaMl();
+          detalle.id_orden_ml = ordenId;
+          detalle.venta_ml_id = ventaMl.id;
+          detalle.productos = productos;
+          detalle.monto_orden = montoTotal;
+          detalle.fecha_orden_ml = new Date(order.date_created);
+          await this.detalleVentaMlRepository.save(detalle);
+        }
+
+        // Recalcular monto total de la venta sumando todas sus órdenes
+        const detalles = await this.detalleVentaMlRepository.find({
+          where: { venta_ml_id: ventaMl.id },
+        });
+        ventaMl.monto_total = detalles.reduce((sum, d) => sum + d.monto_orden, 0);
+        await this.ventaMlRepository.save(ventaMl);
       }
 
       await this.googleLoggingService.log(
@@ -680,6 +695,7 @@ export class MercadoLibreService {
     const total = await query.getCount();
     const totalPages = Math.ceil(total / limit);
     const data = await query
+      .leftJoinAndSelect('venta_ml.detalles', 'detalles')
       .skip((page - 1) * limit)
       .take(limit)
       .getMany();

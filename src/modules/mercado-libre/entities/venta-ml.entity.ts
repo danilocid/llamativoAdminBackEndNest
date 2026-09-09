@@ -3,9 +3,11 @@ import {
   PrimaryGeneratedColumn,
   Column,
   OneToOne,
+  OneToMany,
   JoinColumn,
 } from 'typeorm';
 import { Sales } from '../../sales/entities/sales.entity';
+import { DetalleVentaMl } from './detalle-venta-ml.entity';
 
 @Entity('ventas_ml')
 export class VentaMl {
@@ -15,9 +17,6 @@ export class VentaMl {
   @Column({ type: 'varchar', name: 'id_envio_ml', unique: true })
   id_envio_ml: string;
 
-  @Column({ type: 'varchar', name: 'id_orden_ml' })
-  id_orden_ml: string;
-
   @Column({ type: 'varchar' })
   estado: string;
 
@@ -26,9 +25,6 @@ export class VentaMl {
 
   @Column({ type: 'varchar', name: 'comprador_email', nullable: true })
   comprador_email: string;
-
-  @Column({ type: 'json' })
-  productos: any;
 
   @Column({ type: 'int', name: 'monto_total' })
   monto_total: number;
@@ -61,4 +57,7 @@ export class VentaMl {
   @OneToOne(() => Sales, (sale) => sale.venta_ml)
   @JoinColumn({ name: 'venta_id' })
   venta: Sales;
+
+  @OneToMany(() => DetalleVentaMl, (detalle) => detalle.venta_ml)
+  detalles: DetalleVentaMl[];
 }
