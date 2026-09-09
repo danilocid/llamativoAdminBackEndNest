@@ -552,29 +552,28 @@ export class MercadoLibreService {
 
       for (const order of response.data.results) {
         const shipmentId = order.shipping?.id;
-        let shipmentData = null;
+        if (!shipmentId) continue;
 
-        if (shipmentId) {
-          try {
-            const shipmentResponse = await firstValueFrom(
-              this.httpService.get(
-                `https://api.mercadolibre.com/shipments/${shipmentId}`,
-                {
-                  validateStatus: () => true,
-                  headers,
-                },
-              ),
-            );
-            shipmentData = shipmentResponse.data;
-          } catch (error: any) {
-            await this.googleLoggingService.log(
-              'Error al obtener detalle de envío en syncSales',
-              { shipmentId, error: error.message },
-              'WARNING',
-              'syncSales',
-              'mercado-libre',
-            );
-          }
+        let shipmentData = null;
+        try {
+          const shipmentResponse = await firstValueFrom(
+            this.httpService.get(
+              `https://api.mercadolibre.com/shipments/${shipmentId}`,
+              {
+                validateStatus: () => true,
+                headers,
+              },
+            ),
+          );
+          shipmentData = shipmentResponse.data;
+        } catch (error: any) {
+          await this.googleLoggingService.log(
+            'Error al obtener detalle de envío en syncSales',
+            { shipmentId, error: error.message },
+            'WARNING',
+            'syncSales',
+            'mercado-libre',
+          );
         }
 
         const productos = (order.order_items || []).map((item: any) => ({
@@ -589,22 +588,36 @@ export class MercadoLibreService {
           ? Math.round(shipmentData.shipping_option.cost * (100 / 119))
           : null;
 
+        const shipmentIdStr = String(shipmentId);
         const existing = await this.ventaMlRepository.findOne({
-          where: { id_orden_ml: String(order.id) },
+          where: { id_envio_ml: shipmentIdStr },
         });
 
         if (existing) {
+          // Acumular órdenes y productos si ya existe
+          const ordenesExistentes = existing.id_orden_ml.split(',').map(s => s.trim());
+          if (!ordenesExistentes.includes(String(order.id))) {
+            existing.id_orden_ml = existing.id_orden_ml + ',' + order.id;
+          }
+
+          const productosExistentes = Array.isArray(existing.productos) ? existing.productos : [];
+          const nuevosProductos = productos.filter(
+            (p) => !productosExistentes.some((pe) => pe.id_ml === p.id_ml),
+          );
+          existing.productos = [...productosExistentes, ...nuevosProductos];
+
           existing.estado = order.status;
           existing.fecha_sync = new Date();
-          existing.productos = productos;
-          existing.monto_total = montoTotal;
-          existing.costo_envio = costoEnvio;
+          existing.monto_total = existing.monto_total + montoTotal;
+          if (costoEnvio) {
+            existing.costo_envio = (existing.costo_envio || 0) + costoEnvio;
+          }
           await this.ventaMlRepository.save(existing);
           actualizadas++;
         } else {
           const ventaMl = new VentaMl();
+          ventaMl.id_envio_ml = shipmentIdStr;
           ventaMl.id_orden_ml = String(order.id);
-          ventaMl.id_envio_ml = shipmentId ? String(shipmentId) : null;
           ventaMl.estado = order.status;
           ventaMl.comprador_nombre =
             order.buyer?.first_name + ' ' + order.buyer?.last_name;

@@ -12,11 +12,11 @@ export class VentaMl {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'varchar', name: 'id_orden_ml', unique: true })
-  id_orden_ml: string;
-
-  @Column({ type: 'varchar', name: 'id_envio_ml', nullable: true })
+  @Column({ type: 'varchar', name: 'id_envio_ml', unique: true })
   id_envio_ml: string;
+
+  @Column({ type: 'varchar', name: 'id_orden_ml' })
+  id_orden_ml: string;
 
   @Column({ type: 'varchar' })
   estado: string;
