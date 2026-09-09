@@ -682,7 +682,8 @@ export class MercadoLibreService {
   }
 
   async getVentasMl(page = 1, limit = 10, estado?: string, asociada?: string) {
-    const query = this.ventaMlRepository.createQueryBuilder('venta_ml');
+    const query = this.ventaMlRepository.createQueryBuilder('venta_ml')
+      .leftJoinAndSelect('venta_ml.detalles', 'detalles');
 
     if (estado) {
       query.andWhere('venta_ml.estado = :estado', { estado });
@@ -699,7 +700,6 @@ export class MercadoLibreService {
     const total = await query.getCount();
     const totalPages = Math.ceil(total / limit);
     const data = await query
-      .leftJoinAndSelect('venta_ml.detalles', 'detalles')
       .skip((page - 1) * limit)
       .take(limit)
       .getMany();
