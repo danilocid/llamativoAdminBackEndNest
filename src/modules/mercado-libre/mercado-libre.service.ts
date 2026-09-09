@@ -581,6 +581,7 @@ export class MercadoLibreService {
 
         const productos = (order.order_items || []).map((item: any) => ({
           id_ml: item.item?.id || '',
+          sku: item.item?.seller_sku || '',
           titulo: item.item?.title || '',
           cantidad: item.quantity || 1,
           precio: Math.round((item.unit_price || 0) * (100 / 119)),
@@ -592,6 +593,9 @@ export class MercadoLibreService {
           : null;
 
         const shipmentIdStr = String(shipmentId);
+        const compradorNombre = [order.buyer?.first_name, order.buyer?.last_name]
+          .filter(Boolean)
+          .join(' ') || order.buyer?.nickname || 'Sin nombre';
 
         // Buscar si ya existe una venta con este envío
         let ventaMl = await this.ventaMlRepository.findOne({
@@ -601,6 +605,7 @@ export class MercadoLibreService {
         if (ventaMl) {
           // Actualizar venta existente
           ventaMl.estado = order.status;
+          ventaMl.comprador_nombre = compradorNombre;
           ventaMl.fecha_sync = new Date();
           if (costoEnvio) {
             ventaMl.costo_envio = (ventaMl.costo_envio || 0) + costoEnvio;
@@ -612,8 +617,7 @@ export class MercadoLibreService {
           ventaMl = new VentaMl();
           ventaMl.id_envio_ml = shipmentIdStr;
           ventaMl.estado = order.status;
-          ventaMl.comprador_nombre =
-            order.buyer?.first_name + ' ' + order.buyer?.last_name;
+          ventaMl.comprador_nombre = compradorNombre;
           ventaMl.comprador_email = order.buyer?.email || null;
           ventaMl.monto_total = montoTotal;
           ventaMl.moneda = order.currency_id || 'CLP';
