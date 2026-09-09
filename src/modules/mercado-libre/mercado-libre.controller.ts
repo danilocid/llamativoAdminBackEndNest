@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiQuery } from '@nestjs/swagger';
 import { GetCodeDto } from './dto/get-code.dto';
 import { MercadoLibreService } from './mercado-libre.service';
@@ -29,6 +29,11 @@ export class MercadoLibreController {
   @Get('sync-sales')
   async syncSales() {
     return this.mercadoLibreService.syncSales();
+  }
+
+  @Get('ventas-ml/:id')
+  async getVentaMlById(@Param('id', ParseIntPipe) id: number) {
+    return this.mercadoLibreService.getVentaMlById(id);
   }
 
   @Get('ventas-ml')

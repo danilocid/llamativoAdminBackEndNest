@@ -713,4 +713,25 @@ export class MercadoLibreService {
       totalPages,
     };
   }
+
+  async getVentaMlById(id: number) {
+    const venta = await this.ventaMlRepository.findOne({
+      where: { id },
+      relations: ['detalles'],
+    });
+
+    if (!venta) {
+      return {
+        serverResponseCode: 404,
+        serverResponseMessage: 'Venta ML no encontrada',
+        data: null,
+      };
+    }
+
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: 'Venta ML obtenida',
+      data: venta,
+    };
+  }
 }
