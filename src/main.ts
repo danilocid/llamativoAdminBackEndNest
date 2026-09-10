@@ -2,10 +2,20 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { DataSource } from 'typeorm';
 import { version } from '../package.json';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Ejecutar migraciones automáticamente al iniciar
+  const dataSource = app.get(DataSource);
+  if (process.env.DB_SYNCHRONIZE !== 'true') {
+    Logger.log('Ejecutando migraciones...', 'Bootstrap');
+    await dataSource.runMigrations();
+    Logger.log('Migraciones completadas', 'Bootstrap');
+  }
+
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
