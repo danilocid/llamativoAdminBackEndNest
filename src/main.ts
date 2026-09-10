@@ -10,11 +10,9 @@ async function bootstrap() {
 
   // Ejecutar migraciones automáticamente al iniciar
   const dataSource = app.get(DataSource);
-  if (process.env.DB_SYNCHRONIZE !== 'true') {
-    Logger.log('Ejecutando migraciones...', 'Bootstrap');
-    await dataSource.runMigrations();
-    Logger.log('Migraciones completadas', 'Bootstrap');
-  }
+  Logger.log('Ejecutando migraciones...', 'Bootstrap');
+  await dataSource.runMigrations();
+  Logger.log('Migraciones completadas', 'Bootstrap');
 
   app.useGlobalPipes(
     new ValidationPipe({
