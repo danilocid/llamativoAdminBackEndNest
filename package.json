@@ -20,7 +20,10 @@
     "test:watch": "cross-env NODE_OPTIONS=--no-deprecation jest --watch",
     "test:cov": "cross-env NODE_OPTIONS=--no-deprecation jest --coverage",
     "test:debug": "cross-env NODE_OPTIONS=--no-deprecation node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "cross-env NODE_OPTIONS=--no-deprecation jest --config ./test/jest-e2e.json"
+    "test:e2e": "cross-env NODE_OPTIONS=--no-deprecation jest --config ./test/jest-e2e.json",
+    "migration:generate": "ts-node -r tsconfig-paths/register node_modules/.bin/typeorm migration:generate src/common/migrations/migration -d data-source.ts",
+    "migration:run": "ts-node -r tsconfig-paths/register node_modules/.bin/typeorm migration:run -d data-source.ts",
+    "migration:revert": "ts-node -r tsconfig-paths/register node_modules/.bin/typeorm migration:revert -d data-source.ts"
   },
   "dependencies": {
     "@google-cloud/logging": "^11.2.1",
