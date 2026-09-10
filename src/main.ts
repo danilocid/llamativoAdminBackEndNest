@@ -9,10 +9,13 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Ejecutar migraciones automáticamente al iniciar
-  const dataSource = app.get(DataSource);
-  Logger.log('Ejecutando migraciones...', 'Bootstrap');
-  await dataSource.runMigrations();
-  Logger.log('Migraciones completadas', 'Bootstrap');
+  try {
+    const ds = app.get(DataSource);
+    await ds.runMigrations();
+    Logger.log('Migraciones ejecutadas correctamente', 'Bootstrap');
+  } catch (error) {
+    Logger.error('Error al ejecutar migraciones: ' + error.message, 'Bootstrap');
+  }
 
   app.useGlobalPipes(
     new ValidationPipe({
