@@ -13,7 +13,7 @@ async function bootstrap() {
     const ds = app.get(DataSource);
     await ds.runMigrations();
     Logger.log('Migraciones ejecutadas correctamente', 'Bootstrap');
-  } catch (error) {
+  } catch (error: any) {
     Logger.error('Error al ejecutar migraciones: ' + error.message, 'Bootstrap');
   }
 
