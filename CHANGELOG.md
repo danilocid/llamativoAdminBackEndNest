@@ -5,6 +5,14 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.0.4] - 2026-08-17
+
+### Added
+
+- Notificaciones generadas al sincronizar ventas ML (una por cada orden procesada)
+- Notificación informativa cuando la sincronización no encuentra ventas nuevas
+- Las notificaciones de ventas ML muestran estado de vinculación y monto
+
 ## [2.0.3] - 2026-08-17
 
 ### Added

@@ -1,6 +1,7 @@
-import { Controller, Get, Param, Query, ParseIntPipe } from '@nestjs/common';
-import { ApiTags, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Param, Post, Body, Query, ParseIntPipe } from '@nestjs/common';
+import { ApiTags, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { GetCodeDto } from './dto/get-code.dto';
+import { AsociarVentaMlDto } from './dto/asociar-venta-ml.dto';
 import { MercadoLibreService } from './mercado-libre.service';
 import { MercadoLibreAuthService } from './mercado-libre-auth.service';
 
@@ -34,6 +35,12 @@ export class MercadoLibreController {
   @Get('ventas-ml/:id')
   async getVentaMlById(@Param('id', ParseIntPipe) id: number) {
     return this.mercadoLibreService.getVentaMlById(id);
+  }
+
+  @Post('ventas-ml/asociar')
+  @ApiBody({ type: AsociarVentaMlDto })
+  async asociarVentaMl(@Body() dto: AsociarVentaMlDto) {
+    return this.mercadoLibreService.asociarVentaMl(dto);
   }
 
   @Get('ventas-ml')

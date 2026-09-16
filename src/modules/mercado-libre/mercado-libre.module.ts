@@ -11,11 +11,22 @@ import { Products } from '../products/entities/products.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { MercadoLibreAuthService } from './mercado-libre-auth.service';
 import { ProductSyncService } from './product-sync.service';
+import { Sales } from '../sales/entities/sales.entity';
+import { SalesDetails } from '../sales/entities/sales-details.entity';
+import { Entities } from '../entities/entities/entities.entity';
+import { DocumentType } from '../common/entities/document_type.entity';
+import { PaymentMethod } from '../common/entities/payment_method.entity';
+import { ProductMovementDetail } from '../products-movements/entities/product_movement_detail.entity';
+import { ProductMovementType } from '../products-movements/entities/product_movement_type.entity';
 
 @Module({
   imports: [
     HttpModule,
-    TypeOrmModule.forFeature([MercadoLibreToken, Products, Notification, VentaMl, DetalleVentaMl]),
+    TypeOrmModule.forFeature([
+      MercadoLibreToken, Products, Notification, VentaMl, DetalleVentaMl,
+      Sales, SalesDetails, Entities, DocumentType, PaymentMethod,
+      ProductMovementDetail, ProductMovementType,
+    ]),
   ],
   controllers: [MercadoLibreController],
   providers: [
