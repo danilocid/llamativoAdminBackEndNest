@@ -1,4 +1,4 @@
-import { IsNumber, IsString, IsNotEmpty } from 'class-validator';
+import { IsNumber, IsString, IsNotEmpty, IsOptional, IsObject } from 'class-validator';
 
 export class AsociarVentaMlDto {
   @IsNumber()
@@ -20,4 +20,8 @@ export class AsociarVentaMlDto {
   @IsNumber()
   @IsNotEmpty()
   medio_pago: number;
+
+  @IsObject()
+  @IsOptional()
+  producto_mapping?: { [titulo: string]: number };
 }

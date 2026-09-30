@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { GoogleLoggingService } from '../../common/services/google-logging.service';
@@ -12,6 +16,8 @@ import { MercadoLibreAuthService } from './mercado-libre-auth.service';
 import { ProductSyncService } from './product-sync.service';
 import { Sales } from '../sales/entities/sales.entity';
 import { SalesDetails } from '../sales/entities/sales-details.entity';
+import { SalesExtraCosts } from '../sales/entities/sales-extra-costs.entity';
+import { SalesExtraCostDetails } from '../sales/entities/sales-extra-cost-details.entity';
 import { Entities } from '../entities/entities/entities.entity';
 import { DocumentType } from '../common/entities/document_type.entity';
 import { PaymentMethod } from '../common/entities/payment_method.entity';
@@ -37,6 +43,10 @@ export class MercadoLibreService {
     private readonly salesRepository: Repository<Sales>,
     @InjectRepository(SalesDetails)
     private readonly salesDetailsRepository: Repository<SalesDetails>,
+    @InjectRepository(SalesExtraCosts)
+    private readonly salesExtraCostsRepository: Repository<SalesExtraCosts>,
+    @InjectRepository(SalesExtraCostDetails)
+    private readonly salesExtraCostDetailsRepository: Repository<SalesExtraCostDetails>,
     @InjectRepository(Entities)
     private readonly entitiesRepository: Repository<Entities>,
     @InjectRepository(DocumentType)
@@ -568,7 +578,7 @@ export class MercadoLibreService {
       };
     }
 
-    const url = `https://api.mercadolibre.com/orders/search?seller=${sellerId}&sort=date_desc&limit=50`;
+    const url = `https://api.mercadolibre.com/orders/search?seller=${sellerId}&sort=date_desc&limit=5`;
 
     const headers = {
       Authorization: 'Bearer ' + token,
@@ -632,6 +642,15 @@ export class MercadoLibreService {
           0,
         );
 
+        // TODO: ELIMINAR - Debug: log completo de la orden ML
+        await this.googleLoggingService.log(
+          'DEBUG ML - Orden completa',
+          { order, shipmentData },
+          'INFO',
+          'syncSales',
+          'mercado-libre',
+        );
+
         const shipmentIdStr = String(shipmentId);
         const compradorNombre =
           [order.buyer?.first_name, order.buyer?.last_name]
@@ -646,16 +665,23 @@ export class MercadoLibreService {
         });
 
         if (ventaMl) {
-          // Actualizar venta existente
-          ventaMl.estado = order.status;
-          ventaMl.comprador_nombre = compradorNombre;
-          ventaMl.fecha_sync = new Date();
-          ventaMl.comision_ml = comisionMl;
-          if (costoEnvio) {
-            ventaMl.costo_envio = (ventaMl.costo_envio || 0) + costoEnvio;
+          // Actualizar solo si los datos cambiaron
+          const cambioEstado = ventaMl.estado !== order.status;
+          const cambioComprador = ventaMl.comprador_nombre !== compradorNombre;
+          const cambioComision = ventaMl.comision_ml !== comisionMl;
+          const cambioEnvio = costoEnvio && ventaMl.costo_envio !== costoEnvio;
+
+          if (cambioEstado || cambioComprador || cambioComision || cambioEnvio) {
+            ventaMl.estado = order.status;
+            ventaMl.comprador_nombre = compradorNombre;
+            ventaMl.fecha_sync = new Date();
+            ventaMl.comision_ml = comisionMl;
+            if (costoEnvio) {
+              ventaMl.costo_envio = costoEnvio;
+            }
+            await this.ventaMlRepository.save(ventaMl);
+            actualizadas++;
           }
-          await this.ventaMlRepository.save(ventaMl);
-          actualizadas++;
         } else {
           // Crear nueva venta por envío
           ventaMl = new VentaMl();
@@ -739,10 +765,14 @@ export class MercadoLibreService {
           descripcion = `Envío #${shipmentIdStr} - ${compradorNombre} - $${montoTotal.toLocaleString('es-CL')} - Sin asociar - ${estado}`;
         }
 
+        const url = ventaMl?.venta_id
+          ? `/ventas/ver/${ventaMl.venta_id}`
+          : `/mercado-libre/ventas-ml/ver/${ventaMl.id}`;
+
         await this.notificationRepository.save({
           title: titulo,
           description: descripcion,
-          url: '/mercado-libre/ventas-ml',
+          url,
         });
       }
 
@@ -845,7 +875,9 @@ export class MercadoLibreService {
     }
 
     if (ventaMl.venta_id) {
-      throw new NotFoundException('Esta venta ML ya está asociada a una venta del sistema');
+      throw new NotFoundException(
+        'Esta venta ML ya está asociada a una venta del sistema',
+      );
     }
 
     // Validar cliente
@@ -877,7 +909,9 @@ export class MercadoLibreService {
       where: { documento: dto.documento, tipo_documento: documentType },
     });
     if (saleExist) {
-      throw new NotFoundException('Ya existe una venta con ese número de documento');
+      throw new NotFoundException(
+        'Ya existe una venta con ese número de documento',
+      );
     }
 
     // Recoger todos los productos de todas las órdenes
@@ -892,33 +926,50 @@ export class MercadoLibreService {
       throw new NotFoundException('La venta ML no tiene productos');
     }
 
-    // Buscar productos por SKU y validar stock
+    // Buscar productos por SKU (o por mapping si no tiene SKU) y validar stock
     const productosParaVenta: any[] = [];
     const iva = 19;
 
     for (const prodMl of allProductos) {
-      if (!prodMl.sku) {
-        throw new NotFoundException(`El producto "${prodMl.titulo}" no tiene SKU configurado en ML`);
+      let product = null;
+
+      if (prodMl.sku) {
+        // Buscar por SKU (cod_barras)
+        product = await this.productsRepository.findOne({
+          where: { cod_barras: prodMl.sku },
+        });
       }
 
-      const product = await this.productsRepository.findOne({
-        where: { cod_barras: prodMl.sku },
-      });
+      if (!product && dto.producto_mapping?.[prodMl.titulo]) {
+        // Buscar por mapping del usuario
+        product = await this.productsRepository.findOne({
+          where: { id: dto.producto_mapping[prodMl.titulo] },
+        });
+      }
 
       if (!product) {
-        throw new NotFoundException(`Producto con SKU ${prodMl.sku} no encontrado en el sistema`);
+        const busqueda = prodMl.sku
+          ? `SKU ${prodMl.sku}`
+          : `título "${prodMl.titulo}"`;
+        throw new NotFoundException(
+          `Producto con ${busqueda} no encontrado en el sistema`,
+        );
       }
 
       if (product.stock < prodMl.cantidad) {
-        throw new NotFoundException(`Stock insuficiente para "${product.descripcion}". Stock: ${product.stock}, requerido: ${prodMl.cantidad}`);
+        throw new NotFoundException(
+          `Stock insuficiente para "${product.descripcion}". Stock: ${product.stock}, requerido: ${prodMl.cantidad}`,
+        );
       }
 
       if (product.deprecado) {
-        throw new NotFoundException(`El producto "${product.descripcion}" está deprecado`);
+        throw new NotFoundException(
+          `El producto "${product.descripcion}" está deprecado`,
+        );
       }
 
       const precioConIva = prodMl.precio;
-      const precioNeto = Math.round(precioConIva * 100 / (100 + iva));
+      const precioNeto = Math.round((precioConIva * 100) / (100 + iva));
       const precioImp = precioConIva - precioNeto;
 
       productosParaVenta.push({
@@ -960,9 +1011,10 @@ export class MercadoLibreService {
     const saleSaved = await this.salesRepository.save(sale);
 
     // Guardar detalles, descontar stock y registrar movimientos
-    const productMovementType = await this.productMovementTypeRepository.findOne({
-      where: { tipo_movimiento: 'venta' },
-    });
+    const productMovementType =
+      await this.productMovementTypeRepository.findOne({
+        where: { tipo_movimiento: 'venta' },
+      });
 
     for (const prod of productosParaVenta) {
       const detail = new SalesDetails();
@@ -989,6 +1041,39 @@ export class MercadoLibreService {
       await this.productMovementDetailRepository.save(productMovementDetail);
     }
 
+    // Crear costos extra si hay costo de envío o comisión ML
+    if (ventaMl.costo_envio && ventaMl.costo_envio > 0) {
+      let costoEnvioType = await this.salesExtraCostsRepository.findOne({
+        where: { name: 'Envío ML' },
+      });
+      if (!costoEnvioType) {
+        costoEnvioType = await this.salesExtraCostsRepository.save({
+          name: 'Envío ML',
+        });
+      }
+      const extraCostEnvio = new SalesExtraCostDetails();
+      extraCostEnvio.venta = saleSaved;
+      extraCostEnvio.costo_extra = costoEnvioType;
+      extraCostEnvio.monto = ventaMl.costo_envio;
+      await this.salesExtraCostDetailsRepository.save(extraCostEnvio);
+    }
+
+    if (ventaMl.comision_ml && ventaMl.comision_ml > 0) {
+      let comisionType = await this.salesExtraCostsRepository.findOne({
+        where: { name: 'Comisión ML' },
+      });
+      if (!comisionType) {
+        comisionType = await this.salesExtraCostsRepository.save({
+          name: 'Comisión ML',
+        });
+      }
+      const extraCostComision = new SalesExtraCostDetails();
+      extraCostComision.venta = saleSaved;
+      extraCostComision.costo_extra = comisionType;
+      extraCostComision.monto = ventaMl.comision_ml;
+      await this.salesExtraCostDetailsRepository.save(extraCostComision);
+    }
+
     // Vincular venta ML con la venta creada
     ventaMl.venta_id = saleSaved.id;
     await this.ventaMlRepository.save(ventaMl);
@@ -997,6 +1082,80 @@ export class MercadoLibreService {
       serverResponseCode: 200,
       serverResponseMessage: 'Venta ML asociada correctamente',
       data: { venta_id: saleSaved.id },
+    };
+  }
+
+  async vincularVentaExistente(dto: { venta_ml_id: number; venta_id: number }) {
+    const ventaMl = await this.ventaMlRepository.findOne({
+      where: { id: dto.venta_ml_id },
+    });
+    if (!ventaMl) {
+      throw new NotFoundException('Venta ML no encontrada');
+    }
+
+    if (ventaMl.venta_id) {
+      throw new NotFoundException(
+        `La venta ML ya está vinculada a la venta #${ventaMl.venta_id}`,
+      );
+    }
+
+    const sale = await this.salesRepository.findOne({
+      where: { id: dto.venta_id },
+    });
+    if (!sale) {
+      throw new NotFoundException('Venta no encontrada');
+    }
+
+    if (sale.venta_ml_id) {
+      throw new NotFoundException(
+        `La venta #${dto.venta_id} ya está vinculada a otra venta ML`,
+      );
+    }
+
+    // Vincular
+    ventaMl.venta_id = sale.id;
+    await this.ventaMlRepository.save(ventaMl);
+
+    sale.venta_ml_id = ventaMl.id;
+    await this.salesRepository.save(sale);
+
+    // Crear costos extra si corresponde
+    if (ventaMl.costo_envio && ventaMl.costo_envio > 0) {
+      let costoEnvioType = await this.salesExtraCostsRepository.findOne({
+        where: { name: 'Envío ML' },
+      });
+      if (!costoEnvioType) {
+        costoEnvioType = await this.salesExtraCostsRepository.save({
+          name: 'Envío ML',
+        });
+      }
+      const extraCostEnvio = new SalesExtraCostDetails();
+      extraCostEnvio.venta = sale;
+      extraCostEnvio.costo_extra = costoEnvioType;
+      extraCostEnvio.monto = ventaMl.costo_envio;
+      await this.salesExtraCostDetailsRepository.save(extraCostEnvio);
+    }
+
+    if (ventaMl.comision_ml && ventaMl.comision_ml > 0) {
+      let comisionType = await this.salesExtraCostsRepository.findOne({
+        where: { name: 'Comisión ML' },
+      });
+      if (!comisionType) {
+        comisionType = await this.salesExtraCostsRepository.save({
+          name: 'Comisión ML',
+        });
+      }
+      const extraCostComision = new SalesExtraCostDetails();
+      extraCostComision.venta = sale;
+      extraCostComision.costo_extra = comisionType;
+      extraCostComision.monto = ventaMl.comision_ml;
+      await this.salesExtraCostDetailsRepository.save(extraCostComision);
+    }
+
+    return {
+      serverResponseCode: 200,
+      serverResponseMessage: 'Venta vinculada correctamente',
+      data: { venta_id: sale.id },
     };
   }
 }

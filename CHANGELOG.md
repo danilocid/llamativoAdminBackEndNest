@@ -5,6 +5,21 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.0.5] - 2026-09-30
+
+### Added
+
+- Endpoint `POST /mercado-libre/ventas-ml/vincular` para vincular una venta ML a una venta ya existente del sistema
+- Soporte de `producto_mapping` en `POST /mercado-libre/ventas-ml/asociar` para asociar productos de ML sin SKU con productos del sistema
+- Costos extra "Envío ML" y "Comisión ML" al asociar o vincular una venta ML
+- Filtro `sin_ml` en `GET /sales` para listar ventas sin venta ML asociada
+- Relación `venta_ml` incluida en `GET /sales/:id`
+
+### Changed
+
+- Las notificaciones de ventas ML ahora enlazan a la venta asociada o al detalle de la venta ML
+- La sincronización de ventas ML solo actualiza registros cuando los datos cambiaron
+
 ## [2.0.4] - 2026-08-17
 
 ### Added

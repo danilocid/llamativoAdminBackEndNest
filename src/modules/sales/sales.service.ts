@@ -48,6 +48,12 @@ export class SalesService {
     queryBuilder.leftJoinAndSelect('ventas.cliente', 'cliente');
     queryBuilder.leftJoinAndSelect('ventas.tipo_documento', 'tipo_documento');
     queryBuilder.leftJoinAndSelect('ventas.medio_pago', 'medio_pago');
+
+    // Filtro: ventas sin venta ML asociada
+    if (t.filtro === 'sin_ml') {
+      queryBuilder.andWhere('ventas.venta_ml_id IS NULL');
+    }
+
     // Add order condition if needed
     if (columnt) {
       const condition = columnt.includes('.');
@@ -76,7 +82,7 @@ export class SalesService {
   async getSaleById(id: number) {
     const sale = await this.salesRepository.findOne({
       where: { id },
-      relations: ['cliente', 'tipo_documento', 'medio_pago'],
+      relations: ['cliente', 'tipo_documento', 'medio_pago', 'venta_ml'],
     });
 
     // if sale not found

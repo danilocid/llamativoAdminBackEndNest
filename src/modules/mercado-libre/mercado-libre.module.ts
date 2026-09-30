@@ -13,6 +13,8 @@ import { MercadoLibreAuthService } from './mercado-libre-auth.service';
 import { ProductSyncService } from './product-sync.service';
 import { Sales } from '../sales/entities/sales.entity';
 import { SalesDetails } from '../sales/entities/sales-details.entity';
+import { SalesExtraCosts } from '../sales/entities/sales-extra-costs.entity';
+import { SalesExtraCostDetails } from '../sales/entities/sales-extra-cost-details.entity';
 import { Entities } from '../entities/entities/entities.entity';
 import { DocumentType } from '../common/entities/document_type.entity';
 import { PaymentMethod } from '../common/entities/payment_method.entity';
@@ -24,7 +26,8 @@ import { ProductMovementType } from '../products-movements/entities/product_move
     HttpModule,
     TypeOrmModule.forFeature([
       MercadoLibreToken, Products, Notification, VentaMl, DetalleVentaMl,
-      Sales, SalesDetails, Entities, DocumentType, PaymentMethod,
+      Sales, SalesDetails, SalesExtraCosts, SalesExtraCostDetails,
+      Entities, DocumentType, PaymentMethod,
       ProductMovementDetail, ProductMovementType,
     ]),
   ],
