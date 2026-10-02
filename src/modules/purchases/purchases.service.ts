@@ -12,6 +12,7 @@ import { CreatePurchaseDto } from './dto/create-purchase.dto';
 import { GoogleLoggingService } from 'src/common/services/google-logging.service';
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ImportRcvDto } from './dto/import-rcv.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class PurchasesService {
@@ -29,6 +30,7 @@ export class PurchasesService {
     @InjectRepository(Notification)
     private notificationRepository: Repository<Notification>,
     private readonly googleLoggingService: GoogleLoggingService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async getTypes() {
@@ -173,6 +175,21 @@ export class PurchasesService {
       await this.notificationRepository.save(notification);
 
       throw error;
+    } finally {
+      // La importación puede crear muchas notificaciones (una por compra):
+      // siempre se respeta el tope máximo.
+      await this.limitNotificationsQuietly();
+    }
+  }
+
+  /** Aplica el tope de notificaciones sin fallar la importación si algo sale mal. */
+  private async limitNotificationsQuietly(): Promise<void> {
+    try {
+      await this.notificationsService.limitNotifications();
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo aplicar el limite de notificaciones: ${(error as Error).message}`,
+      );
     }
   }
 

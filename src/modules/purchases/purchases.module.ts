@@ -8,6 +8,7 @@ import { Purchases } from './entities/purchases.entity';
 import { Entities } from '../entities/entities/entities.entity';
 import { DocumentType } from '../common/entities/document_type.entity';
 import { Notification } from '../notifications/entities/notification.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 import { GoogleLoggingService } from 'src/common/services/google-logging.service';
 
 @Module({
@@ -21,6 +22,6 @@ import { GoogleLoggingService } from 'src/common/services/google-logging.service
     ]),
   ],
   controllers: [PurchasesController],
-  providers: [PurchasesService, GoogleLoggingService],
+  providers: [PurchasesService, NotificationsService, GoogleLoggingService],
 })
 export class PurchasesModule {}

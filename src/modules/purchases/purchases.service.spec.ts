@@ -8,6 +8,7 @@ import { Entities } from '../entities/entities/entities.entity';
 import { DocumentType } from '../common/entities/document_type.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { GoogleLoggingService } from 'src/common/services/google-logging.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { BadRequestException } from '@nestjs/common';
 
 describe('PurchasesService', () => {
@@ -80,6 +81,10 @@ describe('PurchasesService', () => {
     log: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockNotificationsService = {
+    limitNotifications: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -107,6 +112,10 @@ describe('PurchasesService', () => {
         {
           provide: GoogleLoggingService,
           useValue: mockGoogleLoggingService,
+        },
+        {
+          provide: NotificationsService,
+          useValue: mockNotificationsService,
         },
       ],
     }).compile();
@@ -385,6 +394,7 @@ describe('PurchasesService', () => {
       expect(result.serverResponseCode).toBe(200);
       expect(result.data.purchasesCreated).toBe(0);
       expect(notificationRepository.save).toHaveBeenCalled();
+      expect(mockNotificationsService.limitNotifications).toHaveBeenCalled();
     });
 
     it('should create purchases from received records', async () => {
@@ -403,6 +413,7 @@ describe('PurchasesService', () => {
       expect(result.data.totalScraped).toBe(1);
       expect(purchaseRepository.save).toHaveBeenCalled();
       expect(notificationRepository.save).toHaveBeenCalled();
+      expect(mockNotificationsService.limitNotifications).toHaveBeenCalled();
     });
 
     it('should skip purchase when tipo_documento is not found', async () => {

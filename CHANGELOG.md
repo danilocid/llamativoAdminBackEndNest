@@ -15,6 +15,7 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Changed
 
+- `POST /purchases/import` aplica el tope de **30 notificaciones** (`NotificationsService.limitNotifications`) después de crear las notificaciones del período importado
 - Docker: `Dockerfile` y `Dockerfile.pi` usan `node:20-slim` sin Chromium; se elimina `shm_size` del `docker-compose.yml`
 
 ### Removed
