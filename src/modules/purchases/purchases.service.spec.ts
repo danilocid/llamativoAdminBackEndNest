@@ -8,18 +8,13 @@ import { Entities } from '../entities/entities/entities.entity';
 import { DocumentType } from '../common/entities/document_type.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { GoogleLoggingService } from 'src/common/services/google-logging.service';
-import { SiiScraperService } from './sii-scraper.service';
 import { BadRequestException } from '@nestjs/common';
 
 describe('PurchasesService', () => {
   let service: PurchasesService;
   let purchaseTypeRepository: jest.Mocked<Repository<PurchasesTypes>>;
   let purchaseRepository: jest.Mocked<Repository<Purchases>>;
-  let entitiesRepository: jest.Mocked<Repository<Entities>>;
-  let documentTypeRepository: jest.Mocked<Repository<DocumentType>>;
   let notificationRepository: jest.Mocked<Repository<Notification>>;
-  let googleLoggingService: jest.Mocked<GoogleLoggingService>;
-  let siiScraperService: jest.Mocked<SiiScraperService>;
 
   const mockPurchaseType: PurchasesTypes = { id: 1, tipo_compra: 'Recibido' };
 
@@ -85,10 +80,6 @@ describe('PurchasesService', () => {
     log: jest.fn().mockResolvedValue(undefined),
   };
 
-  const mockSiiScraperService = {
-    scrapePurchases: jest.fn(),
-  };
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -117,21 +108,13 @@ describe('PurchasesService', () => {
           provide: GoogleLoggingService,
           useValue: mockGoogleLoggingService,
         },
-        {
-          provide: SiiScraperService,
-          useValue: mockSiiScraperService,
-        },
       ],
     }).compile();
 
     service = module.get<PurchasesService>(PurchasesService);
     purchaseTypeRepository = module.get(getRepositoryToken(PurchasesTypes));
     purchaseRepository = module.get(getRepositoryToken(Purchases));
-    entitiesRepository = module.get(getRepositoryToken(Entities));
-    documentTypeRepository = module.get(getRepositoryToken(DocumentType));
     notificationRepository = module.get(getRepositoryToken(Notification));
-    googleLoggingService = module.get(GoogleLoggingService);
-    siiScraperService = module.get(SiiScraperService);
   });
 
   afterEach(() => {
@@ -348,109 +331,90 @@ describe('PurchasesService', () => {
     });
   });
 
-  // ─── scrapeAndSavePurchases ──────────────────────────────────────────────────
+  // ─── importRcvData ───────────────────────────────────────────────────────────
 
-  describe('scrapeAndSavePurchases', () => {
-    it('should return empty result when scraper returns no data', async () => {
-      siiScraperService.scrapePurchases.mockResolvedValue([]);
-      const mockNotif = { title: '', description: '', url: '' };
+  const rcvRegistro = {
+    'Tipo Doc': '33',
+    Folio: '100',
+    'RUT Proveedor': '12345678-9',
+    'Razon Social': 'Test',
+    'Tipo Compra': 'Del Giro',
+    'Fecha Docto': '15/01/2025',
+    'Fecha Recepcion': '15/01/2025',
+    'Fecha Acuse': '',
+    'Monto Exento': '0',
+    'Monto Neto': '100000',
+    'Monto IVA Recuperable': '19000',
+    'Monto Iva No Recuperable': '0',
+    'Codigo IVA No Rec.': '0',
+    'Monto Total': '119000',
+    'Monto Neto Activo Fijo': '0',
+    'IVA Activo Fijo': '0',
+    'IVA uso Comun': '0',
+    'Impto. Sin Derecho a Credito': '0',
+    'IVA No Retenido': '0',
+    'Tabacos Puros': '0',
+    'Tabacos Cigarrillos': '0',
+    'Tabacos Elaborados': '0',
+    'NCE o NDE sobre Fact. de Compra': '',
+    'Codigo Otro Impuesto': '0',
+    'Valor Otro Impuesto': '0',
+    'Tasa Otro Impuesto': '0',
+    Nro: '',
+  };
+
+  describe('importRcvData', () => {
+    const mockNotif = { title: '', description: '', url: '' };
+
+    const buildDto = (tipoDoc: string) => ({
+      mes: 6,
+      anio: 2026,
+      registros: [{ ...rcvRegistro, 'Tipo Doc': tipoDoc }],
+    });
+
+    it('should notify when no records are received', async () => {
       mockNotificationRepository.create.mockReturnValue(mockNotif);
       mockNotificationRepository.save.mockResolvedValue(mockNotif);
 
-      const result = await service.scrapeAndSavePurchases(6, 2026);
+      const result = await service.importRcvData({
+        mes: 6,
+        anio: 2026,
+        registros: [],
+      });
 
       expect(result.serverResponseCode).toBe(200);
       expect(result.data.purchasesCreated).toBe(0);
       expect(notificationRepository.save).toHaveBeenCalled();
     });
 
-    it('should create purchases from scraped data', async () => {
-      siiScraperService.scrapePurchases.mockResolvedValue([
-        {
-          'Tipo Doc': '33',
-          Folio: '100',
-          'RUT Proveedor': '12345678-9',
-          'Razon Social': 'Test',
-          'Tipo Compra': 'Del Giro',
-          'Fecha Docto': '15/01/2025',
-          'Fecha Recepcion': '15/01/2025',
-          'Fecha Acuse': '',
-          'Monto Exento': '0',
-          'Monto Neto': '100000',
-          'Monto IVA Recuperable': '19000',
-          'Monto Iva No Recuperable': '0',
-          'Codigo IVA No Rec.': '0',
-          'Monto Total': '119000',
-          'Monto Neto Activo Fijo': '0',
-          'IVA Activo Fijo': '0',
-          'IVA uso Comun': '0',
-          'Impto. Sin Derecho a Credito': '0',
-          'IVA No Retenido': '0',
-          'Tabacos Puros': '0',
-          'Tabacos Cigarrillos': '0',
-          'Tabacos Elaborados': '0',
-          'NCE o NDE sobre Fact. de Compra': '',
-          'Codigo Otro Impuesto': '0',
-          'Valor Otro Impuesto': '0',
-          'Tasa Otro Impuesto': '0',
-          Nro: '',
-        },
-      ]);
+    it('should create purchases from received records', async () => {
       mockDocumentTypeRepository.findOne.mockResolvedValue(mockDocumentType);
       mockPurchaseRepository.findOne.mockResolvedValue(null);
       mockEntitiesRepository.findOne.mockResolvedValue(mockEntity);
       mockPurchaseTypeRepository.findOne.mockResolvedValue(mockPurchaseType);
       mockPurchaseRepository.save.mockResolvedValue(mockPurchase);
-      const mockNotif = { title: '', description: '', url: '' };
       mockNotificationRepository.create.mockReturnValue(mockNotif);
       mockNotificationRepository.save.mockResolvedValue(mockNotif);
 
-      const result = await service.scrapeAndSavePurchases(6, 2026);
+      const result = await service.importRcvData(buildDto('33'));
 
       expect(result.serverResponseCode).toBe(200);
       expect(result.data.purchasesCreated).toBe(1);
+      expect(result.data.totalScraped).toBe(1);
+      expect(purchaseRepository.save).toHaveBeenCalled();
+      expect(notificationRepository.save).toHaveBeenCalled();
     });
 
     it('should skip purchase when tipo_documento is not found', async () => {
-      siiScraperService.scrapePurchases.mockResolvedValue([
-        {
-          'Tipo Doc': '99',
-          Folio: '200',
-          'RUT Proveedor': '12345678-9',
-          'Razon Social': 'Test',
-          'Tipo Compra': 'Del Giro',
-          'Fecha Docto': '15/01/2025',
-          'Fecha Recepcion': '15/01/2025',
-          'Fecha Acuse': '',
-          'Monto Exento': '0',
-          'Monto Neto': '50000',
-          'Monto IVA Recuperable': '9500',
-          'Monto Iva No Recuperable': '0',
-          'Codigo IVA No Rec.': '0',
-          'Monto Total': '59500',
-          'Monto Neto Activo Fijo': '0',
-          'IVA Activo Fijo': '0',
-          'IVA uso Comun': '0',
-          'Impto. Sin Derecho a Credito': '0',
-          'IVA No Retenido': '0',
-          'Tabacos Puros': '0',
-          'Tabacos Cigarrillos': '0',
-          'Tabacos Elaborados': '0',
-          'NCE o NDE sobre Fact. de Compra': '',
-          'Codigo Otro Impuesto': '0',
-          'Valor Otro Impuesto': '0',
-          'Tasa Otro Impuesto': '0',
-          Nro: '',
-        },
-      ]);
       mockDocumentTypeRepository.findOne.mockResolvedValue(null);
-      const mockNotif = { title: '', description: '', url: '' };
       mockNotificationRepository.create.mockReturnValue(mockNotif);
       mockNotificationRepository.save.mockResolvedValue(mockNotif);
 
-      const result = await service.scrapeAndSavePurchases(6, 2026);
+      const result = await service.importRcvData(buildDto('99'));
 
+      expect(result.serverResponseCode).toBe(200);
       expect(result.data.purchasesCreated).toBe(0);
+      expect(purchaseRepository.save).not.toHaveBeenCalled();
     });
   });
 });

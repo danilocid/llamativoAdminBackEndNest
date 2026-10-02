@@ -148,7 +148,7 @@ export class EntitiesService {
     newEntity = { ...entity, comuna: comune };
     try {
       await this.entitiesRepository.save(newEntity);
-    } catch (error) {
+    } catch {
       throw new BadRequestException('Error al crear la entidad.');
     }
     return {
@@ -178,7 +178,7 @@ export class EntitiesService {
     newEntity = { ...entity, comuna: comune };
     try {
       await this.entitiesRepository.save(newEntity);
-    } catch (error) {
+    } catch {
       throw new BadRequestException('Error al actualizar la entidad.');
     }
     return {

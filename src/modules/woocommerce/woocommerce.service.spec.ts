@@ -157,15 +157,27 @@ describe('WoocommerceService', () => {
 
     expect(updateSpy).toHaveBeenCalledTimes(2);
     expect(createSpy).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({
-      created: true,
-      sku: 'SKU2',
-      db_id: 11,
-      woo_id: 777,
-      woo_permalink: 'https://woo.test/p/777',
-      ml_id: 'ML2',
-      ml_title: 'Jardinera Verde',
-    });
+    expect(result).toEqual([
+      {
+        created: false,
+        reason: 'already_exists',
+        sku: 'SKU1',
+        db_id: 10,
+        woo_id: 501,
+        woo_permalink: 'https://woo.test/p/501',
+        ml_id: 'ML1',
+        ml_title: 'Delantal Azul',
+      },
+      {
+        created: true,
+        sku: 'SKU2',
+        db_id: 11,
+        woo_id: 777,
+        woo_permalink: 'https://woo.test/p/777',
+        ml_id: 'ML2',
+        ml_title: 'Jardinera Verde',
+      },
+    ]);
   });
 
   it('debe crear la categoria en WooCommerce si no existe', async () => {
@@ -276,13 +288,19 @@ describe('WoocommerceService', () => {
     expect(mockNotificationRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Producto actualizado en WooCommerce',
-        description: expect.stringContaining('woo_id=1'),
+        description: expect.stringContaining(
+          'Se actualizó el precio del producto Producto Woo (SKU SKU1)',
+        ),
+        url: '/articulos/ver/10',
       }),
     );
     expect(mockNotificationRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Stock actualizado en WooCommerce',
-        description: expect.stringContaining('permalink=https://woo.test/p/1'),
+        description: expect.stringContaining(
+          'Se actualizó el stock del producto Producto Woo (SKU SKU1)',
+        ),
+        url: '/articulos/ver/10',
       }),
     );
   });
@@ -316,7 +334,9 @@ describe('WoocommerceService', () => {
     expect(mockNotificationRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Producto creado en WooCommerce',
-        description: expect.stringContaining('woo_id=321'),
+        description: expect.stringContaining(
+          'Se creó el producto Delantal Test (SKU SKU321)',
+        ),
         url: 'https://woo.test/p/321',
       }),
     );

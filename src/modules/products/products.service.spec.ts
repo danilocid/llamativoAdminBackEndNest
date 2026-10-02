@@ -60,7 +60,7 @@ describe('ProductsService', () => {
   }
 
   const mockProductsRepository: any = {
-    find: jest.fn().mockResolvedValue([] as Products[]),
+    find: jest.fn(async (): Promise<Products[]> => []),
     findOne: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
@@ -387,9 +387,10 @@ describe('ProductsService', () => {
 
     it('should return error when updating to existing product code', async () => {
       const existingProduct = { ...mockProduct, id: 2 };
-      mockProductsRepository.findOne
-        .mockResolvedValueOnce(mockProduct)
-        .mockResolvedValueOnce(existingProduct);
+      mockProductsRepository.findOne.mockResolvedValueOnce(mockProduct);
+      mockProductsRepository.find.mockResolvedValueOnce([
+        cloneProduct(existingProduct),
+      ]);
 
       const result = await service.updateProduct(updateProductDto);
 
@@ -403,9 +404,7 @@ describe('ProductsService', () => {
         cod_barras: '',
       };
 
-      mockProductsRepository.findOne
-        .mockResolvedValueOnce(mockProduct)
-        .mockResolvedValueOnce(null);
+      mockProductsRepository.findOne.mockResolvedValueOnce(mockProduct);
       mockProductsRepository.update.mockResolvedValue({ affected: 1 });
 
       await service.updateProduct(updateDtoWithoutBarcode);
@@ -428,9 +427,7 @@ describe('ProductsService', () => {
         id_ps: '',
       };
 
-      mockProductsRepository.findOne
-        .mockResolvedValueOnce(mockProduct)
-        .mockResolvedValueOnce(null);
+      mockProductsRepository.findOne.mockResolvedValueOnce(mockProduct);
       mockProductsRepository.update.mockResolvedValue({ affected: 1 });
 
       await service.updateProduct(updateDtoWithEmptyFields);
@@ -484,13 +481,16 @@ describe('ProductsService', () => {
       ).toHaveBeenCalled();
     });
 
-    it('should return message when no inactive products found', async () => {
+    it('should return 200 when no inactive products found', async () => {
       mockProductsRepository.find.mockResolvedValue([] as Products[]);
 
       const result = await service.setInactive(false);
 
       expect(result.serverResponseCode).toBe(200);
-      expect(result.serverResponseMessage).toBe('No hay productos inactivos.');
+      expect(result.serverResponseMessage).toBe(
+        'Productos inactivos procesados',
+      );
+      expect(mockProductsRepository.save).not.toHaveBeenCalled();
     });
   });
 

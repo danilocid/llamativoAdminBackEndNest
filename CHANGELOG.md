@@ -5,6 +5,26 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.0.4] - 2026-09-30
+
+### Added
+
+- **Migración del scraping del RCV a un servicio independiente (`llamativoAdminRcvScrapp`)**
+  - Endpoint `POST /purchases/import`: recibe los registros crudos del RCV extraídos por el servicio de scraping y los persiste (dedupe, auto-creación de proveedores, notificaciones)
+  - El scraping se dispara desde el propio servicio de scraping (`GET /rcv/sincronizar`, sin autenticación), no desde el backend
+
+### Changed
+
+- Docker: `Dockerfile` y `Dockerfile.pi` usan `node:20-slim` sin Chromium; se elimina `shm_size` del `docker-compose.yml`
+
+### Removed
+
+- Servicio `SiiScraperService` y la dependencia `playwright`: el scraping del RCV ahora vive en `llamativoAdminRcvScrapp`
+- `ScraperClientService`, el endpoint `GET /purchases/sincronizar` y la variable de entorno `RCV_SCRAPER_URL` (`.env.example`, `docker-compose.yml`): el backend solo recibe los registros en `POST /purchases/import`
+- `HttpModule` del módulo de compras (solo lo usaba `ScraperClientService`)
+- Variables de entorno `SII_RUT`, `SII_PASSWORD` y `CHROME_BIN`
+- Script auxiliar `test-scraper.js`
+
 ## [2.0.3] - 2026-08-17
 
 ### Added

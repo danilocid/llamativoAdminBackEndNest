@@ -28,7 +28,7 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 
 ## Versión Actual
 
-**v2.0.3** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
+**v2.0.4** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
 
 ## Tecnologías
 
@@ -38,7 +38,7 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 - **MySQL**: 8.x (con mysql2 3.22.0)
 - **JWT**: Para autenticación
 - **Google Cloud Logging**: Sistema de logging centralizado
-- **Playwright**: Scraping del Registro de Compras y Ventas del SII
+- **@nestjs/axios**: Comunicación HTTP con Mercado Libre y WooCommerce
 - **bcryptjs**: 3.0.3
 - **Jest**: 30.3.0
 - **ESLint**: 10.2.0
@@ -53,7 +53,7 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 - Integración con Mercado Libre (OAuth2, sincronización de productos)
 - Logging centralizado con Google Cloud Platform
 - Sistema de notificaciones
-- Sincronización automática de compras del SII mediante scraping Playwright
+- Sincronización del RCV del SII mediante el servicio de scraping independiente `llamativoAdminRcvScrapp` (el backend solo recibe los registros)
 - Suite completa de pruebas unitarias (50 tests)
 - Soporte para productos deprecados
 - Resúmenes de inventario con cálculos de rentabilidad
@@ -99,9 +99,8 @@ ML_CLIENT_ID=tu_client_id
 ML_CLIENT_SECRET=tu_client_secret
 ML_REDIRECT_URI=tu_redirect_uri
 
-# SII - Scraping RCV (Playwright)
-SII_RUT=tu_rut_empresa
-SII_PASSWORD=tu_password_sii
+# Servicio de scraping del RCV (llamativoAdminRcvScrapp)
+# Solo recibe los registros: el scraping se dispara desde el propio servicio
 ```
 
 ### Credenciales de Google Cloud
@@ -145,7 +144,7 @@ npm run test:e2e
 
 - **AuthService**: 4 tests (login, validaciones, JWT)
 - **ProductsService**: 23 tests (CRUD, inventario, deprecados)
-- **PurchasesService**: 17 tests (CRUD, reporte, scraping SII)
+- **PurchasesService**: 17 tests (CRUD, reporte, importación RCV)
 - **MercadoLibreService**: 9 tests (sincronización, variaciones)
 - **ProductSyncService**: 21 tests (validación, SKU, lotes)
 - **Total**: 50 tests unitarios
@@ -170,7 +169,7 @@ src/
 │   ├── notifications/      # Sistema de notificaciones
 │   ├── products/           # CRUD de productos (27 tests)
 │   ├── products-movements/ # Movimientos de inventario
-│   ├── purchases/          # Registro de compras
+│   ├── purchases/          # Registro de compras + importación RCV
 │   ├── receptions/         # Recepciones de mercancía
 │   ├── reports/            # Reportes y estadísticas
 │   └── sales/              # Ventas y transacciones
@@ -203,9 +202,15 @@ src/
 ### Compras
 
 - `GET /purchases` - Listar compras
-- `GET /purchases/sincronizar` - Sincronizar compras del RCV del SII (scraping Playwright)
+- `POST /purchases/import` - Recibe los registros extraídos del RCV por el servicio de scraping y los persiste (JWT)
 - `POST /purchases/create` - Registrar compra manual
 - `PUT /purchases/:id` - Actualizar compra
+
+### Flujo de sincronización RCV
+
+1. El scraping se dispara fuera del backend: `GET /rcv/sincronizar?mes=&anio=` del servicio `llamativoAdminRcvScrapp` (endpoint sin autenticación; desde la Pi: `pnpm run sync` o `curl`).
+2. El servicio de scraping se autentica en el SII, descarga el RCV y envía los registros a `POST /purchases/import` (JWT).
+3. El backend dedupe, crea proveedores faltantes y registra las compras; si algo falla se crea una notificación.
 
 ### Ventas
 

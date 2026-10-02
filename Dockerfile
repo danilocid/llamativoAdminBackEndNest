@@ -1,15 +1,13 @@
-FROM mcr.microsoft.com/playwright:v1.61.0-noble
+FROM node:20-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PORT=8080
 
 WORKDIR /app
-
-ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-ENV PORT=8080
 
 COPY package*.json ./
 
 RUN npm ci
-
-RUN npx playwright install chromium
 
 COPY . .
 

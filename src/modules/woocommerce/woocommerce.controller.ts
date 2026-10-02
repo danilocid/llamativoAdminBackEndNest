@@ -1,8 +1,7 @@
-import { Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { WoocommerceService } from './woocommerce.service';
 import { ListWoocommerceProductsDto } from './dto/list-woocommerce-products.dto';
-import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 
 @ApiTags('woocommerce')
 @ApiBearerAuth()

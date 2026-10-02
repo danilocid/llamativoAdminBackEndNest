@@ -10,7 +10,7 @@ import {
   Body,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiBearerAuth, ApiConsumes, ApiBody, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiConsumes, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { GoogleDriveService } from './google-drive.service';
 
 interface MulterFile {

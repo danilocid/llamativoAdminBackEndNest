@@ -3,7 +3,6 @@ import {
   IsArray,
   IsNotEmpty,
   IsNumber,
-  IsString,
   Min,
   ValidateNested,
   ArrayMaxSize,

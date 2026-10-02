@@ -11,7 +11,7 @@ import { UpdatePurchaseDto } from './dto/update-purchase.dto';
 import { CreatePurchaseDto } from './dto/create-purchase.dto';
 import { GoogleLoggingService } from 'src/common/services/google-logging.service';
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
-import { SiiScraperService } from './sii-scraper.service';
+import { ImportRcvDto } from './dto/import-rcv.dto';
 
 @Injectable()
 export class PurchasesService {
@@ -29,7 +29,6 @@ export class PurchasesService {
     @InjectRepository(Notification)
     private notificationRepository: Repository<Notification>,
     private readonly googleLoggingService: GoogleLoggingService,
-    private readonly siiScraperService: SiiScraperService,
   ) {}
 
   async getTypes() {
@@ -83,14 +82,24 @@ export class PurchasesService {
     };
   }
 
-  async scrapeAndSavePurchases(mes: number, anio: number) {
-    this.logger.log(`Iniciando sincronización scraping RCV para ${mes}/${anio}`);
+  /**
+   * Importa los registros extraidos del RCV por el servicio de scraping
+   * (`llamativoAdminRcvScrapp`) y los persiste en la base de datos.
+   * Endpoint: POST /purchases/import
+   */
+  async importRcvData(dto: ImportRcvDto) {
+    const { mes, anio, registros } = dto;
+    const totalRegistros = registros?.length || 0;
+
+    this.logger.log(
+      `Importando ${totalRegistros} registros del RCV para ${mes}/${anio}`,
+    );
 
     try {
-      const scrapedData = await this.siiScraperService.scrapePurchases(mes, anio);
-
-      if (!scrapedData || scrapedData.length === 0) {
-        this.logger.warn(`No se obtuvieron datos del scraping para ${mes}/${anio}`);
+      if (totalRegistros === 0) {
+        this.logger.warn(
+          `No se recibieron registros del RCV para ${mes}/${anio}`,
+        );
 
         const notification = this.notificationRepository.create({
           title: 'No hay compras para el mes en curso',
@@ -102,11 +111,17 @@ export class PurchasesService {
         return {
           serverResponseCode: 200,
           serverResponseMessage: 'No se encontraron compras en el RCV',
-          data: { month: mes, year: anio, purchasesCreated: 0 },
+          data: { month: mes, year: anio, purchasesCreated: 0, totalRegistros: 0 },
         };
       }
 
-      const result = await this.savePurchasesFromData(scrapedData, scrapedData.length, mes, anio, 'scrapeAndSavePurchases');
+      const result = await this.savePurchasesFromData(
+        registros,
+        totalRegistros,
+        mes,
+        anio,
+        'importRcvData',
+      );
 
       if (result.count === 0) {
         const notification = this.notificationRepository.create({
@@ -130,33 +145,34 @@ export class PurchasesService {
         }
       }
 
-      this.logger.log(`Scraping RCV completado: ${result.count} compras guardadas de ${scrapedData.length} registros extraídos`);
+      this.logger.log(
+        `Importacion RCV completada: ${result.count} compras guardadas de ${totalRegistros} registros recibidos`,
+      );
 
       return {
         serverResponseCode: 200,
-        serverResponseMessage: 'Scraping RCV completado',
+        serverResponseMessage: 'Importacion RCV completada',
         data: {
           month: mes,
           year: anio,
           purchasesCreated: result.count,
-          totalScraped: scrapedData.length,
+          totalScraped: totalRegistros,
         },
       };
     } catch (error) {
-      this.logger.error(`Error en scraping RCV: ${(error as Error).message}`, (error as Error).stack);
+      this.logger.error(
+        `Error importando RCV: ${(error as Error).message}`,
+        (error as Error).stack,
+      );
 
       const notification = this.notificationRepository.create({
         title: 'Error en scraping RCV',
-        description: `Error al sincronizar compras del RCV para ${mes}/${anio}: ${(error as Error).message}`.substring(0, 255),
+        description: `Error al importar compras del RCV para ${mes}/${anio}: ${(error as Error).message}`.substring(0, 255),
         url: '/compras',
       });
       await this.notificationRepository.save(notification);
 
-      return {
-        serverResponseCode: 500,
-        serverResponseMessage: 'Error al sincronizar compras del RCV',
-        data: { error: (error as Error).message },
-      };
+      throw error;
     }
   }
 

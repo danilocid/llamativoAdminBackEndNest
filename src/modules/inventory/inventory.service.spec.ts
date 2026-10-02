@@ -12,15 +12,6 @@ import { SubmitCountDto } from './dto/submit-count.dto';
 
 describe('InventoryService', () => {
   let service: InventoryService;
-  let inventoryRepository: jest.Mocked<Repository<Inventory>>;
-  let inventoryDetailsRepository: jest.Mocked<Repository<InventoryDetails>>;
-  let productsRepository: jest.Mocked<Repository<Products>>;
-  let productMovementDetailRepository: jest.Mocked<
-    Repository<ProductMovementDetail>
-  >;
-  let productMovementTypeRepository: jest.Mocked<
-    Repository<ProductMovementType>
-  >;
   let userRepository: jest.Mocked<Repository<User>>;
 
   // ─── Mocks ───────────────────────────────────────────────────────────────────
@@ -84,8 +75,12 @@ describe('InventoryService', () => {
 
   const buildQueryBuilderMock = (resolvedValue: any) => ({
     where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
     getOne: jest.fn().mockResolvedValue(resolvedValue),
+    getMany: jest.fn().mockResolvedValue(
+      resolvedValue == null ? [] : [resolvedValue],
+    ),
   });
 
   // ─── Repository mocks ────────────────────────────────────────────────────────
@@ -113,7 +108,7 @@ describe('InventoryService', () => {
       addSelect: jest.fn().mockReturnThis(),
       skip: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
-    })),
+    })) as jest.Mock,
     save: jest.fn(),
     findOne: jest.fn(),
   };
@@ -165,17 +160,6 @@ describe('InventoryService', () => {
     }).compile();
 
     service = module.get<InventoryService>(InventoryService);
-    inventoryRepository = module.get(getRepositoryToken(Inventory));
-    inventoryDetailsRepository = module.get(
-      getRepositoryToken(InventoryDetails),
-    );
-    productsRepository = module.get(getRepositoryToken(Products));
-    productMovementDetailRepository = module.get(
-      getRepositoryToken(ProductMovementDetail),
-    );
-    productMovementTypeRepository = module.get(
-      getRepositoryToken(ProductMovementType),
-    );
     userRepository = module.get(getRepositoryToken(User));
   });
 
@@ -190,7 +174,7 @@ describe('InventoryService', () => {
   // ─── getNextProductToCount ───────────────────────────────────────────────────
 
   describe('getNextProductToCount', () => {
-    it('should return the product with the oldest last_cont that has stock > 0', async () => {
+    it('should return a random product with stock > 0', async () => {
       mockProductsRepository.createQueryBuilder.mockReturnValue(
         buildQueryBuilderMock(mockProduct),
       );
@@ -214,17 +198,20 @@ describe('InventoryService', () => {
       expect(result.serverResponseCode).toBe(404);
       expect(result.data).toBeNull();
       expect(result.serverResponseMessage).toBe(
-        'No hay productos con stock disponible para contar',
+        'No hay productos con stock pendiente de contar',
       );
     });
 
-    it('should order results by last_cont ASC', async () => {
+    it('should filter out products counted in the last week', async () => {
       const qbMock = buildQueryBuilderMock(mockProduct);
       mockProductsRepository.createQueryBuilder.mockReturnValue(qbMock);
 
       await service.getNextProductToCount();
 
-      expect(qbMock.orderBy).toHaveBeenCalledWith('product.last_cont', 'ASC');
+      expect(qbMock.andWhere).toHaveBeenCalledWith(
+        'product.last_cont < :oneWeekAgo',
+        { oneWeekAgo: expect.any(Date) },
+      );
     });
 
     it('should filter products with stock > 0 regardless of activo or deprecado', async () => {
