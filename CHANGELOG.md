@@ -25,6 +25,10 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 - Variables de entorno `SII_RUT`, `SII_PASSWORD` y `CHROME_BIN`
 - Script auxiliar `test-scraper.js`
 
+### Fixed
+
+- `package-lock.json`: eliminada la entrada stale `node_modules/playwright/node_modules/fsevents` (quedó como `extraneous` sin `optional: true` al desinstalar Playwright) que rompía `npm ci` en Linux con `EBADPLATFORM` durante el build de Cloud Build
+
 ## [2.0.3] - 2026-08-17
 
 ### Added
