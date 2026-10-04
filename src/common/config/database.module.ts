@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TimestampsSubscriber } from '../subscribers/timestamps.subscriber';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         password: configService.get('DB_PASS'),
         database: configService.get('DB_NAME'),
         entities: ['dist/**/*.entity{.ts,.js}'],
+        subscribers: [TimestampsSubscriber],
         synchronize: false,
       }),
     }),

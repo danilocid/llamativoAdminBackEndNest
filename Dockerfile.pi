@@ -2,6 +2,7 @@ FROM node:20-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PORT=8080
+ENV TZ=America/Santiago
 
 WORKDIR /app
 

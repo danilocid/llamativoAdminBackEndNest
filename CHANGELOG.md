@@ -5,6 +5,18 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.0.5] - 2026-10-04
+
+### Added
+
+- **`createdAt`/`updatedAt` siempre se guardan en hora de Chile**
+  - Subscriber global `TimestampsSubscriber` (`src/common/subscribers/timestamps.subscriber.ts`, registrado en `DatabaseModule`): en cada `save()` asigna `createdAt` (solo si falta) y `updatedAt` con la hora actual del proceso Node, eliminando la dependencia de `DEFAULT`/`ON UPDATE CURRENT_TIMESTAMP` del servidor MySQL (cuya zona horaria no se controla)
+  - Tests unitarios del subscriber (5 casos)
+
+### Changed
+
+- Docker (`Dockerfile`, `Dockerfile.pi`) y `docker-compose.yml`: `TZ=America/Santiago` — con mysql2 en `timezone: 'local'`, todas las fechas se serializan en hora chilena y el DST (-03/-04) se resuelve automáticamente
+
 ## [2.0.4] - 2026-09-30
 
 ### Added
