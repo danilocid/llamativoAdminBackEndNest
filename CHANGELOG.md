@@ -5,6 +5,12 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.0.6] - 2026-10-04
+
+### Removed
+
+- `Dockerfile.pi` del backend: era idéntico a `Dockerfile` y solo existía por el scraping del RCV, hoy en `llamativoAdminRcvScrapp`; `docker-compose.yml` ahora construye con `Dockerfile`
+
 ## [2.0.5] - 2026-10-04
 
 ### Added
