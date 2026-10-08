@@ -609,6 +609,11 @@ export class MercadoLibreService {
       let nuevas = 0;
       let actualizadas = 0;
 
+      // Órdenes que efectivamente cambiaron en esta corrida. Solo esas generan
+      // notificación: si se recorrieran todas, cada pasada del cron repetiría
+      // los mismos avisos.
+      const ordenesNotificar: any[] = [];
+
       // Solo órdenes creadas a partir de la fecha de corte (inclusive),
       // para no importar ventas históricas anteriores a la puesta en marcha
       const ordenes: any[] = (response.data.results as any[]).filter(
@@ -688,6 +693,7 @@ export class MercadoLibreService {
             }
             await this.ventaMlRepository.save(ventaMl);
             actualizadas++;
+            ordenesNotificar.push(order);
           }
         } else {
           // Crear nueva venta por envío
@@ -704,6 +710,7 @@ export class MercadoLibreService {
           ventaMl.fecha_sync = new Date();
           await this.ventaMlRepository.save(ventaMl);
           nuevas++;
+          ordenesNotificar.push(order);
         }
 
         // Crear o actualizar detalle de orden (siempre, porque una venta puede tener múltiples órdenes)
@@ -741,55 +748,50 @@ export class MercadoLibreService {
         'mercado-libre',
       );
 
-      // Generar notificación por cada venta sincronizada
-      for (const order of ordenes) {
-        const shipmentId = order.shipping?.id;
-        if (!shipmentId) continue;
+      // Notificar solo las órdenes que cambiaron en esta corrida. Si no hubo
+      // novedad no se genera ninguna notificación: los avisos se reservan para
+      // cuando realmente hay ventas nuevas o cambió algún dato.
+      if (nuevas > 0 || actualizadas > 0) {
+        for (const order of ordenesNotificar) {
+          const shipmentId = order.shipping?.id;
+          if (!shipmentId) continue;
 
-        const shipmentIdStr = String(shipmentId);
-        const ventaMl = await this.ventaMlRepository.findOne({
-          where: { id_envio_ml: shipmentIdStr },
-        });
+          const shipmentIdStr = String(shipmentId);
+          const ventaMl = await this.ventaMlRepository.findOne({
+            where: { id_envio_ml: shipmentIdStr },
+          });
 
-        const compradorNombre =
-          [order.buyer?.first_name, order.buyer?.last_name]
-            .filter(Boolean)
-            .join(' ') ||
-          order.buyer?.nickname ||
-          'Sin nombre';
+          const compradorNombre =
+            [order.buyer?.first_name, order.buyer?.last_name]
+              .filter(Boolean)
+              .join(' ') ||
+            order.buyer?.nickname ||
+            'Sin nombre';
 
-        const montoTotal = order.total_amount || 0;
-        const estado = order.status || 'desconocido';
+          const montoTotal = order.total_amount || 0;
+          const estado = order.status || 'desconocido';
 
-        let titulo: string;
-        let descripcion: string;
+          let titulo: string;
+          let descripcion: string;
 
-        if (ventaMl?.venta_id) {
-          titulo = 'Venta ML vinculada';
-          descripcion = `Envío #${shipmentIdStr} - ${compradorNombre} - $${montoTotal.toLocaleString('es-CL')} - Venta #${ventaMl.venta_id} - ${estado}`;
-        } else {
-          titulo = 'Venta ML pendiente';
-          descripcion = `Envío #${shipmentIdStr} - ${compradorNombre} - $${montoTotal.toLocaleString('es-CL')} - Sin asociar - ${estado}`;
+          if (ventaMl?.venta_id) {
+            titulo = 'Venta ML vinculada';
+            descripcion = `Envío #${shipmentIdStr} - ${compradorNombre} - $${montoTotal.toLocaleString('es-CL')} - Venta #${ventaMl.venta_id} - ${estado}`;
+          } else {
+            titulo = 'Venta ML pendiente';
+            descripcion = `Envío #${shipmentIdStr} - ${compradorNombre} - $${montoTotal.toLocaleString('es-CL')} - Sin asociar - ${estado}`;
+          }
+
+          const url = ventaMl?.venta_id
+            ? `/ventas/ver/${ventaMl.venta_id}`
+            : `/mercado-libre/ventas-ml/ver/${ventaMl.id}`;
+
+          await this.notificationRepository.save({
+            title: titulo,
+            description: descripcion,
+            url,
+          });
         }
-
-        const url = ventaMl?.venta_id
-          ? `/ventas/ver/${ventaMl.venta_id}`
-          : `/mercado-libre/ventas-ml/ver/${ventaMl.id}`;
-
-        await this.notificationRepository.save({
-          title: titulo,
-          description: descripcion,
-          url,
-        });
-      }
-
-      // Si no hubo nuevas ni actualizadas, generar notificación informativa
-      if (nuevas === 0 && actualizadas === 0) {
-        await this.notificationRepository.save({
-          title: 'Sincronización ML sin novedad',
-          description: `Se revisaron ${ordenes.length} órdenes posteriores a la fecha de corte, sin ventas nuevas`,
-          url: '/mercado-libre/ventas-ml',
-        });
       }
 
       // Mantener máximo 30 notificaciones

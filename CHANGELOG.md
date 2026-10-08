@@ -5,6 +5,14 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.0.12] - 2026-10-08
+
+### Changed
+
+- **Sincronización de ventas ML: no genera notificaciones si no hay novedad.**
+  - Eliminado el aviso "Sincronización ML sin novedad" que se creaba en cada pasada del cron cuando `nuevas === 0 && actualizadas === 0`
+  - La notificación por orden ahora se genera **solo para las órdenes que cambiaron** en la corrida; antes recorría todas las órdenes desde la fecha de corte y repetía los mismos avisos en cada ejecución, reemplazando siempre la lista (el límite de 30 hacía que se reescribiera por completo)
+
 ## [2.0.11] - 2026-10-08
 
 ### Changed
