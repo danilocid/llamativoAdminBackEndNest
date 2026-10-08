@@ -18,6 +18,7 @@ import { TimestampsSubscriber } from '../subscribers/timestamps.subscriber';
         entities: ['dist/**/*.entity{.ts,.js}'],
         subscribers: [TimestampsSubscriber],
         migrations: ['dist/common/migrations/*{.ts,.js}'],
+        migrationsRun: true,
         synchronize: configService.get('DB_SYNCHRONIZE') === 'true',
       }),
     }),

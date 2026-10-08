@@ -5,6 +5,12 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.0.8] - 2026-10-07
+
+### Changed
+
+- TypeORM ejecuta las migraciones pendientes automáticamente al iniciar: `migrationsRun: true` en `DatabaseModule`, en conjunto con el `runMigrations()` del bootstrap
+
 ## [2.0.7] - 2026-10-07
 
 ### Added
