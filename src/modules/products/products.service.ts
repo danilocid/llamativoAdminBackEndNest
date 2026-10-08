@@ -213,6 +213,27 @@ export class ProductsService {
     }
     await this.mercadoLibreService.listProducts();
 
+    // Sincronizar ventas de Mercado Libre junto a la validación de
+    // artículos inactivos (proceso disparado por el cron)
+    try {
+      const syncSalesResult = await this.mercadoLibreService.syncSales();
+      await this.googleLoggingService.log(
+        'Sincronización de ventas ML ejecutada al validar artículos inactivos',
+        syncSalesResult,
+        'INFO',
+        'setInactive',
+        'products',
+      );
+    } catch (error: unknown) {
+      await this.googleLoggingService.log(
+        'Error ejecutando sincronización de ventas ML al validar artículos inactivos',
+        { error: error instanceof Error ? error.message : String(error) },
+        'WARNING',
+        'setInactive',
+        'products',
+      );
+    }
+
     // get all products with stock 0 and active true, but not deprecated
     const products = await this.productsRepository.find({
       where: { stock: 0, activo: true, deprecado: false },

@@ -5,6 +5,20 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.0.9] - 2026-10-07
+
+### Added
+
+- La sincronización de ventas ML ahora también se ejecuta al validar los artículos inactivos (`GET /products/inactive`, proceso disparado por el cron), con logging de éxito o error y sin interrumpir el resto del proceso si falla
+
+### Changed
+
+- `GET /mercado-libre/sync-sales` solo importa órdenes creadas a partir del **07/10/2026** (inclusive); las anteriores se descartan sin generar notificaciones, y el resumen "sin novedad" reporta las órdenes efectivamente revisadas
+
+### Fixed
+
+- `mercado-libre.service.spec.ts`: agregados los repositorios que faltaban en el módulo de tests (`VentaMl`, `DetalleVentaMl`, `Sales`, `SalesDetails`, `SalesExtraCosts`, `SalesExtraCostDetails`, `Entities`, `DocumentType`, `PaymentMethod`, `ProductMovementDetail`, `ProductMovementType`), que impedían que 10 tests se ejecutaran por dependencia no resuelta
+
 ## [2.0.8] - 2026-10-07
 
 ### Changed

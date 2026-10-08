@@ -24,6 +24,14 @@ import { PaymentMethod } from '../common/entities/payment_method.entity';
 import { ProductMovementDetail } from '../products-movements/entities/product_movement_detail.entity';
 import { ProductMovementType } from '../products-movements/entities/product_movement_type.entity';
 import { AsociarVentaMlDto } from './dto/asociar-venta-ml.dto';
+
+/**
+ * Fecha de corte para la sincronización de ventas de Mercado Libre.
+ * Solo se importan las órdenes creadas a partir de este día (inclusive),
+ * para no arrastrar ventas históricas anteriores a la puesta en marcha.
+ */
+const FECHA_CORTE_VENTAS_ML = '2026-10-07';
+
 @Injectable()
 export class MercadoLibreService {
   constructor(
@@ -601,7 +609,15 @@ export class MercadoLibreService {
       let nuevas = 0;
       let actualizadas = 0;
 
-      for (const order of response.data.results) {
+      // Solo órdenes creadas a partir de la fecha de corte (inclusive),
+      // para no importar ventas históricas anteriores a la puesta en marcha
+      const ordenes: any[] = (response.data.results as any[]).filter(
+        (order) =>
+          String(order.date_created || '').slice(0, 10) >=
+          FECHA_CORTE_VENTAS_ML,
+      );
+
+      for (const order of ordenes) {
         const shipmentId = order.shipping?.id;
         if (!shipmentId) continue;
 
@@ -640,15 +656,6 @@ export class MercadoLibreService {
         const comisionMl = (order.order_items || []).reduce(
           (sum: number, item: any) => sum + (item.sale_fee || 0),
           0,
-        );
-
-        // TODO: ELIMINAR - Debug: log completo de la orden ML
-        await this.googleLoggingService.log(
-          'DEBUG ML - Orden completa',
-          { order, shipmentData },
-          'INFO',
-          'syncSales',
-          'mercado-libre',
         );
 
         const shipmentIdStr = String(shipmentId);
@@ -728,14 +735,14 @@ export class MercadoLibreService {
 
       await this.googleLoggingService.log(
         'Sincronización de ventas ML completada',
-        { total: response.data.results.length, nuevas, actualizadas },
+        { total: ordenes.length, nuevas, actualizadas },
         'INFO',
         'syncSales',
         'mercado-libre',
       );
 
       // Generar notificación por cada venta sincronizada
-      for (const order of response.data.results) {
+      for (const order of ordenes) {
         const shipmentId = order.shipping?.id;
         if (!shipmentId) continue;
 
@@ -780,7 +787,7 @@ export class MercadoLibreService {
       if (nuevas === 0 && actualizadas === 0) {
         await this.notificationRepository.save({
           title: 'Sincronización ML sin novedad',
-          description: `Se revisaron ${response.data.results.length} órdenes, sin ventas nuevas`,
+          description: `Se revisaron ${ordenes.length} órdenes posteriores a la fecha de corte, sin ventas nuevas`,
           url: '/mercado-libre/ventas-ml',
         });
       }
@@ -791,7 +798,7 @@ export class MercadoLibreService {
       return {
         serverResponseCode: 200,
         serverResponseMessage: 'Ventas sincronizadas correctamente',
-        data: { total: response.data.results.length, nuevas, actualizadas },
+        data: { total: ordenes.length, nuevas, actualizadas },
       };
     } catch (error: any) {
       await this.googleLoggingService.log(

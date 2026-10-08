@@ -10,6 +10,33 @@ import { ProductSyncService } from './product-sync.service';
 import { Products } from '../products/entities/products.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { GoogleLoggingService } from '../../common/services/google-logging.service';
+import { VentaMl } from './entities/venta-ml.entity';
+import { DetalleVentaMl } from './entities/detalle-venta-ml.entity';
+import { Sales } from '../sales/entities/sales.entity';
+import { SalesDetails } from '../sales/entities/sales-details.entity';
+import { SalesExtraCosts } from '../sales/entities/sales-extra-costs.entity';
+import { SalesExtraCostDetails } from '../sales/entities/sales-extra-cost-details.entity';
+import { Entities } from '../entities/entities/entities.entity';
+import { DocumentType } from '../common/entities/document_type.entity';
+import { PaymentMethod } from '../common/entities/payment_method.entity';
+import { ProductMovementDetail } from '../products-movements/entities/product_movement_detail.entity';
+import { ProductMovementType } from '../products-movements/entities/product_movement_type.entity';
+
+/** Repositorio mock genérico para entidades no usadas por los tests. */
+const createMockRepository = () => ({
+  find: jest.fn(),
+  findOne: jest.fn(),
+  findAndCount: jest.fn(),
+  save: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn(),
+  remove: jest.fn(),
+  count: jest.fn(),
+  insert: jest.fn(),
+  clear: jest.fn(),
+  createQueryBuilder: jest.fn(),
+});
 
 describe('MercadoLibreService', () => {
   let service: MercadoLibreService;
@@ -76,6 +103,50 @@ describe('MercadoLibreService', () => {
         {
           provide: GoogleLoggingService,
           useValue: mockGoogleLoggingService,
+        },
+        {
+          provide: getRepositoryToken(VentaMl),
+          useValue: createMockRepository(),
+        },
+        {
+          provide: getRepositoryToken(DetalleVentaMl),
+          useValue: createMockRepository(),
+        },
+        {
+          provide: getRepositoryToken(Sales),
+          useValue: createMockRepository(),
+        },
+        {
+          provide: getRepositoryToken(SalesDetails),
+          useValue: createMockRepository(),
+        },
+        {
+          provide: getRepositoryToken(SalesExtraCosts),
+          useValue: createMockRepository(),
+        },
+        {
+          provide: getRepositoryToken(SalesExtraCostDetails),
+          useValue: createMockRepository(),
+        },
+        {
+          provide: getRepositoryToken(Entities),
+          useValue: createMockRepository(),
+        },
+        {
+          provide: getRepositoryToken(DocumentType),
+          useValue: createMockRepository(),
+        },
+        {
+          provide: getRepositoryToken(PaymentMethod),
+          useValue: createMockRepository(),
+        },
+        {
+          provide: getRepositoryToken(ProductMovementDetail),
+          useValue: createMockRepository(),
+        },
+        {
+          provide: getRepositoryToken(ProductMovementType),
+          useValue: createMockRepository(),
         },
       ],
     }).compile();
