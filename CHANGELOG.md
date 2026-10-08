@@ -5,6 +5,23 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.0.11] - 2026-10-08
+
+### Changed
+
+- Conexión a la base de datos resistente a timeouts (`connect ETIMEDOUT` al conectar con el servidor):
+  - **Reintentos al iniciar:** de 9 intentos cada 3 s (≈27 s) a **60 intentos cada 5 s (≈5 minutos)**, para dar margen si el servicio de BD no está disponible al arrancar
+  - **Espera por intento (`connectTimeout`):** de 10 000 ms a **30 000 ms**
+  - **Keep-alive:** `keepAliveInitialDelay` de 0 a 10 000 ms, para que MySQL o un NAT/firewall no corten en silencio las conexiones ociosas
+  - **Limpieza del pool:** `maxIdle < poolSize` activa la tarea de mysql2 que descarta conexiones muertas; con el default (`maxIdle = connectionLimit`) esa tarea nunca corría y una conexión caída quedaba en el pool y fallaba al reutilizarse
+  - **Cola del pool:** `waitForConnections` y `queueLimit: 0` explícitos, para encolar consultas en vez de fallar cuando el pool está lleno
+- Errores permanentes (`ER_ACCESS_DENIED_ERROR`, `ER_DBACCESS_DENIED_ERROR`, `ER_BAD_DB_ERROR`) **no** se reintentan, para fallar rápido y mostrar el motivo real en el log
+
+### Added
+
+- Variables de entorno opcionales `DB_POOL_SIZE`, `DB_CONNECT_TIMEOUT` y `DB_IDLE_TIMEOUT`
+- Corregidos los nombres de las variables de entorno de base de datos en el README (`DB_USER` / `DB_PASS` / `DB_NAME`, antes documentadas como `DB_USERNAME` / `DB_PASSWORD` / `DB_DATABASE`)
+
 ## [2.0.10] - 2026-10-08
 
 ### Fixed

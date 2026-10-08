@@ -83,9 +83,18 @@ Crea un archivo `.env` en la raíz del proyecto:
 # Base de datos
 DB_HOST=localhost
 DB_PORT=3306
-DB_USERNAME=tu_usuario
-DB_PASSWORD=tu_contraseña
-DB_DATABASE=nombre_db
+DB_USER=tu_usuario
+DB_PASS=tu_contraseña
+DB_NAME=nombre_db
+
+# Conexión a la base de datos (opcionales, con estos valores por defecto)
+DB_POOL_SIZE=10          # conexiones simultáneas del pool
+DB_CONNECT_TIMEOUT=30000 # ms de espera por cada intento de conexión
+DB_IDLE_TIMEOUT=60000    # ms antes de descartar una conexión ociosa del pool
+```
+
+Los reintentos al iniciar la aplicación (60 intentos cada 5 s, es decir unos 5
+minutos de margen) están fijados en `src/common/config/database.module.ts`.
 
 # JWT
 JWT_SECRET=tu_secreto_jwt
