@@ -5,6 +5,13 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.0.10] - 2026-10-08
+
+### Fixed
+
+- Error `QueryFailedError: Unknown column 'Sales.venta_ml_id' in 'field list'` al consultar las ventas del sistema: la columna `venta_ml_id` de la tabla `ventas` estaba declarada en la entidad `Sales` pero nunca se creó con una migración
+- Nueva migración `1791417600000-AddVentaMlIdToVentas` que agrega `venta_ml_id INT NULL` a `ventas`; es idempotente (consulta `information_schema` antes de agregar o eliminar la columna), por lo que también sirve si la columna ya se creó a mano para desbloquear el error
+
 ## [2.0.9] - 2026-10-07
 
 ### Added
