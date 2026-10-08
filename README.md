@@ -28,7 +28,7 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 
 ## Versión Actual
 
-**v2.0.4** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
+**v2.0.7** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
 
 ## Tecnologías
 
@@ -51,6 +51,7 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 - Sistema de reportes y estadísticas
 - **Conteo aleatorio de inventario** con ajuste automático de stock
 - Integración con Mercado Libre (OAuth2, sincronización de productos)
+- **Ventas de Mercado Libre**: sincronización de órdenes, listado y detalle, y asociación o vinculación con ventas del sistema
 - Logging centralizado con Google Cloud Platform
 - Sistema de notificaciones
 - Sincronización del RCV del SII mediante el servicio de scraping independiente `llamativoAdminRcvScrapp` (el backend solo recibe los registros)
@@ -214,7 +215,7 @@ src/
 
 ### Ventas
 
-- `GET /sales` - Listar ventas
+- `GET /sales` - Listar ventas (parámetros: `page`, `param`, `order`, `sort`, y `filtro=sin_ml` para excluir las que ya tienen venta ML asociada)
 - `POST /sales` - Registrar venta
 - `GET /sales/:id` - Obtener detalle de venta
 - `GET /sales/extra-costs` - Listar tipos de costos extra
@@ -225,6 +226,13 @@ src/
 - `GET /mercado-libre/auth` - Iniciar OAuth2
 - `GET /mercado-libre/callback` - Callback de autorización
 - `POST /mercado-libre/sync` - Sincronizar productos
+- `GET /mercado-libre/sync-sales` - Sincronizar órdenes desde Mercado Libre (genera notificaciones)
+- `GET /mercado-libre/ventas-ml` - Listar ventas de Mercado Libre
+- `GET /mercado-libre/ventas-ml/:id` - Detalle de venta ML (órdenes, productos, comisión y envío)
+- `POST /mercado-libre/ventas-ml/asociar` - Crear una venta del sistema desde una venta ML (acepta `producto_mapping` para productos sin SKU)
+- `POST /mercado-libre/ventas-ml/vincular` - Vincular una venta ML a una venta ya existente del sistema
+
+> Al asociar o vincular se crean los costos extra "Envío ML" y "Comisión ML" cuando sus montos son mayores a cero.
 
 ## Google Cloud Logging
 

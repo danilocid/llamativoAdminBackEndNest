@@ -4,6 +4,7 @@ import {
   Column,
   ManyToOne,
   OneToMany,
+  OneToOne,
   JoinColumn,
 } from 'typeorm';
 
@@ -12,6 +13,7 @@ import { Entities } from 'src/modules/entities/entities/entities.entity';
 import { PaymentMethod } from 'src/modules/common/entities/payment_method.entity';
 import { SalesExtraCostDetails } from './sales-extra-cost-details.entity';
 import { SalesDetails } from './sales-details.entity';
+import { VentaMl } from '../../mercado-libre/entities/venta-ml.entity';
 
 @Entity('ventas')
 export class Sales {
@@ -55,9 +57,15 @@ export class Sales {
   @Column({ type: 'int', name: 'usuario', default: 1 })
   usuario: number;
 
+  @Column({ type: 'int', name: 'venta_ml_id', nullable: true })
+  venta_ml_id: number;
+
   @OneToMany(() => SalesExtraCostDetails, (extraCost) => extraCost.venta)
   sales_extra_cost_details: SalesExtraCostDetails[];
 
   @OneToMany(() => SalesDetails, (detail) => detail.venta)
   sales_details: SalesDetails[];
+
+  @OneToOne(() => VentaMl, (ventaMl) => ventaMl.venta)
+  venta_ml: VentaMl;
 }

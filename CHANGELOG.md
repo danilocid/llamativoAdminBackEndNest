@@ -5,6 +5,36 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.0.7] - 2026-10-07
+
+### Added
+
+- **Ventas de Mercado Libre**
+  - Entidades `VentaMl` y `DetalleVentaMl` (`ventas_ml` y `detalles_ventas_ml`), con las órdenes agrupadas por `id_envio_ml`
+  - `GET /mercado-libre/sync-sales` para sincronizar órdenes desde Mercado Libre
+  - `GET /mercado-libre/ventas-ml` y `GET /mercado-libre/ventas-ml/:id` para listado y detalle (órdenes, productos, comisión y envío)
+  - `POST /mercado-libre/ventas-ml/asociar` para crear una venta del sistema a partir de una venta ML
+  - `POST /mercado-libre/ventas-ml/vincular` para vincular una venta ML a una venta ya existente del sistema
+  - Soporte de `producto_mapping` en `POST /mercado-libre/ventas-ml/asociar`, para asociar productos de ML sin SKU con productos del sistema
+  - Costos extra "Envío ML" y "Comisión ML" al asociar o vincular una venta ML
+  - Filtro `sin_ml` en `GET /sales` para listar ventas sin venta ML asociada
+  - Relación `venta_ml` incluida en `GET /sales/:id`
+  - Notificaciones al sincronizar ventas ML: una por cada orden procesada e informativa cuando no hay ventas nuevas; enlazan a la venta asociada o al detalle de la venta ML y respetan el tope de 30
+- **Migraciones de base de datos**
+  - `src/data-source.ts` y scripts `migration:generate`, `migration:run` y `migration:revert`
+  - Las migraciones se ejecutan automáticamente al iniciar la aplicación (`runMigrations` en el bootstrap)
+  - Migración inicial `1725000000000-CreateVentasMlTables` para `ventas_ml` y `detalles_ventas_ml`
+  - Variable de entorno `DB_SYNCHRONIZE` para habilitar `synchronize` de TypeORM (default: desactivado)
+
+### Changed
+
+- La sincronización de ventas ML solo actualiza registros cuando los datos cambiaron (estado, comprador, comisión y costo de envío); `costo_envio` se sobrescribe en cada sincronización en lugar de acumularse
+- Los parámetros de `GET /mercado-libre/ventas-ml` quedan documentados como opcionales en Swagger
+
+### Technical
+
+- Entorno de desarrollo: `docker-compose.dev.yml` y `pnpm-workspace.yaml`, junto a ajustes de CORS y de puerto para el despliegue con Portainer
+
 ## [2.0.6] - 2026-10-04
 
 ### Removed

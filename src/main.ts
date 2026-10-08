@@ -2,10 +2,21 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { DataSource } from 'typeorm';
 import { version } from '../package.json';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Ejecutar migraciones automáticamente al iniciar
+  try {
+    const ds = app.get(DataSource);
+    await ds.runMigrations();
+    Logger.log('Migraciones ejecutadas correctamente', 'Bootstrap');
+  } catch (error: any) {
+    Logger.error('Error al ejecutar migraciones: ' + error.message, 'Bootstrap');
+  }
+
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
@@ -18,6 +29,7 @@ async function bootstrap() {
       'http://localhost:4200',
       'https://localhost:4200',
       'https://llamativo-admin.web.app',
+      'http://192.168.2.41:4200',
     ],
     credentials: true,
   });
