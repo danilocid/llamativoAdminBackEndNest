@@ -25,6 +25,7 @@ describe('ProductSyncService', () => {
   };
 
   const mockProductsRepository = {
+    find: jest.fn(),
     findOne: jest.fn(),
     save: jest.fn(),
     manager: {
@@ -318,6 +319,99 @@ describe('ProductSyncService', () => {
           expect(productsRepository.save).not.toHaveBeenCalled();
         });
       });
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // validarPublicacionesActivas
+  // ---------------------------------------------------------------------------
+  describe('validarPublicacionesActivas', () => {
+    const publicado = (overrides: Partial<Products> = {}): Products =>
+      ({
+        ...mockProduct,
+        publicado: true,
+        id_ml: 'MLB123',
+        id_variante_ml: null,
+        ...overrides,
+      }) as unknown as Products;
+
+    beforeEach(() => {
+      // createProductNotification lee notification.id para registrar el log
+      mockNotificationRepository.save.mockResolvedValue({ id: 1 });
+    });
+
+    it('no modifica los productos cuya publicación sigue activa', async () => {
+      mockProductsRepository.find.mockResolvedValue([publicado()]);
+
+      const result = await service.validarPublicacionesActivas(['MLB123'], {
+        MLB123: [],
+      });
+
+      expect(result).toEqual({ evaluados: 1, despublicados: 0 });
+      expect(productsRepository.save).not.toHaveBeenCalled();
+      expect(mockNotificationRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('despublica el producto sin identificador de publicación', async () => {
+      const product = publicado({ id_ml: null });
+      mockProductsRepository.find.mockResolvedValue([product]);
+
+      const result = await service.validarPublicacionesActivas(['MLB123']);
+
+      expect(result).toEqual({ evaluados: 1, despublicados: 1 });
+      expect(product.publicado).toBe(false);
+      expect(productsRepository.save).toHaveBeenCalledWith(product);
+      expect(mockNotificationRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Producto sin publicación activa en ML',
+          description: expect.stringContaining('no tiene asociado'),
+          url: `/articulos/ver/${product.id}`,
+        }),
+      );
+    });
+
+    it('despublica el producto cuya publicación ya no está activa en ML', async () => {
+      const product = publicado({ id_ml: 'MLB999' });
+      mockProductsRepository.find.mockResolvedValue([product]);
+
+      const result = await service.validarPublicacionesActivas(['MLB123']);
+
+      expect(result.despublicados).toBe(1);
+      expect(product.publicado).toBe(false);
+      expect(mockNotificationRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          description: expect.stringContaining('MLB999'),
+        }),
+      );
+    });
+
+    it('despublica la variante eliminada de una publicación activa', async () => {
+      const product = publicado({ id_variante_ml: 'VAR_VIEJA' });
+      mockProductsRepository.find.mockResolvedValue([product]);
+
+      const result = await service.validarPublicacionesActivas(['MLB123'], {
+        MLB123: ['VAR1', 'VAR2'],
+      });
+
+      expect(result.despublicados).toBe(1);
+      expect(product.publicado).toBe(false);
+      expect(mockNotificationRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          description: expect.stringContaining('ya no existe'),
+        }),
+      );
+    });
+
+    it('respeta la variante que sigue presente en la publicación', async () => {
+      const product = publicado({ id_variante_ml: 'VAR1' });
+      mockProductsRepository.find.mockResolvedValue([product]);
+
+      const result = await service.validarPublicacionesActivas(['MLB123'], {
+        MLB123: ['VAR1', 'VAR2'],
+      });
+
+      expect(result).toEqual({ evaluados: 1, despublicados: 0 });
+      expect(productsRepository.save).not.toHaveBeenCalled();
     });
   });
 });

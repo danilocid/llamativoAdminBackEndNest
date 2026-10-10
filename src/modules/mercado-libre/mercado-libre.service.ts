@@ -94,12 +94,20 @@ export class MercadoLibreService {
       'mercado-libre',
     );
 
-    if (response.data && response.data.results.length > 0) {
+    if (response.data?.results?.length) {
       response.data.details = [];
+
+      // Variaciones vigentes de cada publicación activa, para que la
+      // validación inversa pueda detectar variantes eliminadas
+      const variacionesPorPublicacion: Record<string, string[]> = {};
+
       for (const product of response.data.results) {
         let productDetails = null;
         try {
           productDetails = await this.getProductDetailsFromMl(product);
+          variacionesPorPublicacion[product] = (
+            productDetails.data.variations || []
+          ).map((variation: any) => variation.id);
           delete productDetails.data.sale_terms;
           delete productDetails.data.pictures;
           delete productDetails.data.shipping;
@@ -172,6 +180,15 @@ export class MercadoLibreService {
         }
       }
 
+      // Recorrido inverso: que todo producto marcado como publicado en la base
+      // de datos tenga realmente una publicación activa en Mercado Libre.
+      // Sin esto, un producto cuya publicación se cayó nunca se visita (el
+      // listado solo trae publicaciones activas) y seguía quedando en true.
+      await this.productSyncService.validarPublicacionesActivas(
+        response.data.results as string[],
+        variacionesPorPublicacion,
+      );
+
       delete response.data.seller_id;
       delete response.data.paging;
       delete response.data.query;
@@ -183,6 +200,16 @@ export class MercadoLibreService {
       delete response.data.pictures;
       return response;
     } else {
+      // ML no devolvió publicaciones activas: no hay listado confiable con el
+      // que comparar, así que se omite la validación inversa para no marcar
+      // como no publicado a todo el catálogo por una respuesta vacía
+      await this.googleLoggingService.log(
+        'Sin publicaciones activas en ML: se omite la validación de publicaciones',
+        { total: response.data?.results?.length ?? 0 },
+        'WARNING',
+        'listProducts',
+        'mercado-libre',
+      );
       return response;
     }
   }

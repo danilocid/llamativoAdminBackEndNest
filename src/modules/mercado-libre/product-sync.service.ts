@@ -234,6 +234,103 @@ export class ProductSyncService {
     };
   }
 
+  /**
+   * Valida que todo producto marcado como `publicado` tenga realmente una
+   * publicación activa en Mercado Libre.
+   *
+   * La sincronización de stock recorre las publicaciones activas de ML hacia la
+   * base de datos, de modo que un producto que quedó sin publicación nunca se
+   * visita y su flag seguía quedando en `true`. Este método hace el recorrido
+   * inverso: parte de los productos publicados en la base de datos y corrige
+   * los que ya no tienen publicación activa.
+   *
+   * @param publicacionesActivas ids que ML reporta como publicaciones activas
+   * @param variacionesPorPublicacion variaciones vigentes de cada publicación,
+   *   para detectar variantes eliminadas dentro de una publicación activa
+   */
+  async validarPublicacionesActivas(
+    publicacionesActivas: string[],
+    variacionesPorPublicacion: Record<string, string[]> = {},
+  ) {
+    const activas = new Set(publicacionesActivas);
+    const publicados = await this.productsRepository.find({
+      where: { publicado: true },
+    });
+
+    let despublicados = 0;
+
+    for (const product of publicados) {
+      const motivo = this.motivoSinPublicacionActiva(
+        product,
+        activas,
+        variacionesPorPublicacion,
+      );
+
+      if (!motivo) continue;
+
+      await this.googleLoggingService.log(
+        'Producto marcado como publicado sin publicación activa en ML',
+        { productId: product.id, id_ml: product.id_ml, motivo },
+        'WARNING',
+        'validarPublicacionesActivas',
+        'product-sync',
+      );
+
+      // Solo se corrige el flag: id_ml y enlace_ml se conservan para poder
+      // identificar qué publicación se cayó y poder reactivarla
+      product.publicado = false;
+      await this.productsRepository.save(product);
+      despublicados++;
+
+      await this.createProductNotification(
+        'Producto sin publicación activa en ML',
+        `${product.descripcion} (${product.id}) estaba marcado como publicado, pero ${motivo}. Se marcó como no publicado.`,
+        `/articulos/ver/${product.id}`,
+      );
+    }
+
+    await this.googleLoggingService.log(
+      'Validación de publicaciones activas de ML',
+      { evaluados: publicados.length, despublicados },
+      'INFO',
+      'validarPublicacionesActivas',
+      'product-sync',
+    );
+
+    return { evaluados: publicados.length, despublicados };
+  }
+
+  /**
+   * Devuelve el motivo por el que el producto no tiene publicación activa,
+   * o `null` si la publicación sigue vigente.
+   */
+  private motivoSinPublicacionActiva(
+    product: Products,
+    activas: Set<string>,
+    variacionesPorPublicacion: Record<string, string[]>,
+  ): string | null {
+    if (!product.id_ml) {
+      return 'no tiene asociado el identificador de ninguna publicación';
+    }
+
+    if (!activas.has(product.id_ml)) {
+      return `la publicación ${product.id_ml} ya no está activa en Mercado Libre`;
+    }
+
+    // La publicación existe; verificar que la variación siga en ella
+    const variaciones = variacionesPorPublicacion[product.id_ml];
+    if (
+      product.id_variante_ml &&
+      variaciones &&
+      variaciones.length > 0 &&
+      !variaciones.includes(product.id_variante_ml)
+    ) {
+      return `la variación ${product.id_variante_ml} ya no existe en la publicación ${product.id_ml}`;
+    }
+
+    return null;
+  }
+
   async createProductNotification(
     title: string,
     description: string,

@@ -60,6 +60,7 @@ describe('MercadoLibreService', () => {
     validateAndSyncProduct: jest.fn(),
     validateStockAndPrice: jest.fn(),
     createProductNotification: jest.fn(),
+    validarPublicacionesActivas: jest.fn(),
   };
 
   const mockProductsRepository = {
@@ -459,6 +460,69 @@ describe('MercadoLibreService', () => {
 
       expect(result).toEqual(mockProductList);
       expect(productSyncService.validateAndSyncProduct).not.toHaveBeenCalled();
+    });
+
+    it('should validate that published products have an active listing', async () => {
+      const mockProductList = {
+        status: 200,
+        data: { results: ['MLB123'] },
+      };
+
+      const mockProductDetails = {
+        status: 200,
+        data: {
+          id: 'MLB123',
+          title: 'Test Product',
+          variations: [{ id: 'VAR1' }, { id: 'VAR2' }],
+          sale_terms: [],
+          pictures: [],
+          shipping: {},
+          seller_address: {},
+        },
+      };
+
+      mockAuthService.getAuthToken.mockResolvedValue('mock-token');
+      mockHttpService.get
+        .mockReturnValueOnce(of(mockProductList))
+        .mockReturnValueOnce(of(mockProductDetails));
+      mockProductSyncService.validateAndSyncProduct.mockResolvedValue({
+        id: 1,
+      });
+      mockProductSyncService.validateStockAndPrice.mockResolvedValue(undefined);
+      mockProductSyncService.validarPublicacionesActivas.mockResolvedValue({
+        evaluados: 1,
+        despublicados: 0,
+      });
+
+      await service.listProducts();
+
+      expect(productSyncService.validarPublicacionesActivas).toHaveBeenCalledWith(
+        ['MLB123'],
+        { MLB123: ['VAR1', 'VAR2'] },
+      );
+    });
+
+    it('should skip the publication validation when there are no active listings', async () => {
+      const mockProductList = {
+        status: 200,
+        data: { results: [] },
+      };
+
+      mockAuthService.getAuthToken.mockResolvedValue('mock-token');
+      mockHttpService.get.mockReturnValueOnce(of(mockProductList));
+
+      await service.listProducts();
+
+      expect(
+        productSyncService.validarPublicacionesActivas,
+      ).not.toHaveBeenCalled();
+      expect(googleLoggingService.log).toHaveBeenCalledWith(
+        'Sin publicaciones activas en ML: se omite la validación de publicaciones',
+        expect.objectContaining({ total: 0 }),
+        'WARNING',
+        'listProducts',
+        'mercado-libre',
+      );
     });
   });
 });

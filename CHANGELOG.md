@@ -5,6 +5,21 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.0.13] - 2026-10-10
+
+### Added
+
+- **Validación de que las publicaciones de Mercado Libre sigan activas** durante la sincronización de stock (`GET /mercado-libre/products` / `setInactive`).
+  - Nuevo método `ProductSyncService.validarPublicacionesActivas()`, que hace el recorrido inverso al de la sincronización: parte de los productos con `publicado = true` en la base de datos y verifica contra las publicaciones activas que ML reporta
+  - Detecta tres casos: producto sin `id_ml` asociado, publicación `id_ml` que ya no está activa y variación `id_variante_ml` que ya no existe dentro de una publicación activa
+  - El producto se marca como `publicado = false` y se notifica enlazando al artículo; `id_ml` y `enlace_ml` se conservan para poder identificar y reactivar la publicación
+  - El problema que resolvía: la sincronización solo recorre las publicaciones activas de ML, por lo que un producto cuya publicación se cayó **nunca se visitaba** y seguía quedando como publicado en la base de datos
+  - Si ML no devuelve ninguna publicación activa se omite la validación (con log de WARNING) para no despublicar todo el catálogo por una respuesta vacía
+
+### Fixed
+
+- `listProducts()` ya no lanza `TypeError` cuando ML responde sin `results` (ahora usa `response.data?.results?.length`)
+
 ## [2.0.12] - 2026-10-08
 
 ### Changed

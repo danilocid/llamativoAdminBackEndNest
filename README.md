@@ -28,7 +28,7 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 
 ## Versión Actual
 
-**v2.0.12** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
+**v2.0.13** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
 
 ## Tecnologías
 
@@ -51,6 +51,7 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 - Sistema de reportes y estadísticas
 - **Conteo aleatorio de inventario** con ajuste automático de stock
 - Integración con Mercado Libre (OAuth2, sincronización de productos)
+- **Validación de publicaciones activas de ML**: al sincronizar stock se verifica inversamente que todo producto marcado como publicado tenga realmente una publicación activa, y se corrige el flag si la publicación se cayó
 - **Ventas de Mercado Libre**: sincronización de órdenes, listado y detalle, y asociación o vinculación con ventas del sistema
 - Logging centralizado con Google Cloud Platform
 - Sistema de notificaciones
@@ -153,11 +154,17 @@ npm run test:e2e
 **Cobertura Actual:**
 
 - **AuthService**: 4 tests (login, validaciones, JWT)
-- **ProductsService**: 23 tests (CRUD, inventario, deprecados)
+- **ProductsService**: 24 tests (CRUD, inventario, deprecados)
 - **PurchasesService**: 17 tests (CRUD, reporte, importación RCV)
-- **MercadoLibreService**: 9 tests (sincronización, variaciones)
-- **ProductSyncService**: 21 tests (validación, SKU, lotes)
-- **Total**: 50 tests unitarios
+- **InventoryService**: 15 tests (ajustes y conteos)
+- **ProductSyncService**: 17 tests (validación, SKU, lotes, publicaciones activas de ML)
+- **MercadoLibreService**: 12 tests (sincronización, variaciones, validación de publicaciones)
+- **MercadoLibreAuthService**: 9 tests (token y refresh)
+- **MercadoLibreController**: 5 tests
+- **WoocommerceService**: 5 tests
+- **WoocommerceController**: 2 tests
+- **TimestampsSubscriber**: 5 tests
+- **Total**: 115 tests unitarios en 11 suites
 
 ## Estructura del Proyecto
 
