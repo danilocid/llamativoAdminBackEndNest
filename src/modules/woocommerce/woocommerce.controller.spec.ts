@@ -15,11 +15,13 @@ describe('WoocommerceController', () => {
   let service: WoocommerceService;
   const listProductsMock = jest.fn();
   const syncPublishedProductFromMercadoLibreMock = jest.fn();
+  const notificarCambiosDeSincronizacionMock = jest.fn();
 
   const mockWoocommerceService = {
     listProducts: listProductsMock,
     syncPublishedProductFromMercadoLibre:
       syncPublishedProductFromMercadoLibreMock,
+    notificarCambiosDeSincronizacion: notificarCambiosDeSincronizacionMock,
   };
 
   beforeEach(async () => {
@@ -41,15 +43,39 @@ describe('WoocommerceController', () => {
     jest.clearAllMocks();
   });
 
-  it('debe delegar listProducts al servicio', async () => {
-    const dto = { page: 1, per_page: 20 };
-    const expected = { data: [], total: '0', totalPages: '0' };
+  it('debe delegar listProducts al servicio y notificar los cambios', async () => {
+    const dto = { page: 1, per_page: 20, sincronizar: true };
+    const cambios = { precios: ['A'], stocks: ['B'] };
+    const expected = { data: [], total: '0', totalPages: '0', cambios };
     listProductsMock.mockImplementation(async () => expected);
 
     const result = await controller.listProducts(dto as any);
 
-    expect(service.listProducts).toHaveBeenCalledWith(dto);
+    // sincronizar viene activado por defecto, así que se escribe en la tienda
+    expect(service.listProducts).toHaveBeenCalledWith(dto, {
+      soloLectura: false,
+    });
+    expect(notificarCambiosDeSincronizacionMock).toHaveBeenCalledWith(cambios);
     expect(result).toBe(expected);
+  });
+
+  it('debe pedir solo lectura cuando sincronizar viene en false', async () => {
+    const dto = { page: 1, per_page: 20, sincronizar: false };
+    listProductsMock.mockImplementation(async () => ({
+      data: [],
+      cambios: { precios: [], stocks: [] },
+    }));
+
+    await controller.listProducts(dto as any);
+
+    expect(service.listProducts).toHaveBeenCalledWith(dto, {
+      soloLectura: true,
+    });
+    // sin cambios no hay nada que notificar
+    expect(notificarCambiosDeSincronizacionMock).toHaveBeenCalledWith({
+      precios: [],
+      stocks: [],
+    });
   });
 
   it('debe delegar syncPublishedProductFromMercadoLibre al servicio', async () => {

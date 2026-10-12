@@ -5,6 +5,18 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.0.15] - 2026-10-12
+
+### Added
+
+- **Flag `sincronizar` en `GET /woocommerce/products`**, activado por defecto. Controla si la sincronización aplica los cambios de precio y stock a WooCommerce, tomando la base de datos como fuente de verdad. Con `?sincronizar=false` se obtiene solo la comparación, sin escribir en la tienda
+
+### Changed
+
+- **La sincronización automática vuelve a aplicar los cambios.** `syncForNotifications()` ya no fuerza el modo solo lectura: vuelve a empujar precio y stock desde la base de datos hacia WooCommerce
+- **Los cambios de la sincronización se notifican como un único resumen** en vez de una notificación por producto. Se juntan los cambios de todas las páginas procesadas y se avisa una sola vez al final, reemplazando a la notificación no leída anterior del mismo título
+  - `listProducts()` ya no notifica por producto: devuelve los cambios en `cambios` y notifica quien lo invoca (`syncForNotifications()` o el endpoint)
+
 ## [2.0.14] - 2026-10-12
 
 ### Added

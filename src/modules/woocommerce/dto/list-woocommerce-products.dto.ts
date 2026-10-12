@@ -1,5 +1,12 @@
-import { IsOptional, IsString, IsNumber, Min, IsIn } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsBoolean,
+  Min,
+  IsIn,
+} from 'class-validator';
+import { Type, Transform } from 'class-transformer';
 
 export class ListWoocommerceProductsDto {
   @IsOptional()
@@ -21,4 +28,16 @@ export class ListWoocommerceProductsDto {
   @IsOptional()
   @IsIn(['any', 'publish', 'draft', 'pending', 'private'])
   status?: string = 'any';
+
+  /**
+   * Aplica los cambios de precio y stock a WooCommerce, tomando la base de
+   * datos como fuente de verdad. Viene activado por defecto; pase `false` para
+   * obtener solo la comparación sin escribir en la tienda.
+   */
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) =>
+    value === undefined ? true : String(value).toLowerCase() !== 'false',
+  )
+  sincronizar?: boolean = true;
 }

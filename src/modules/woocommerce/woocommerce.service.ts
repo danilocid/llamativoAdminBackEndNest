@@ -194,6 +194,12 @@ export class WoocommerceService {
       );
 
       // Actualizar en WooCommerce los productos con precio o stock desincronizado
+      // Los cambios se juntan en listas y se notifican al final como un único
+      // resumen: el proceso corre con frecuencia y una notificación por producto
+      // y por corrida se acumularía sin leerse nunca
+      const preciosActualizados: string[] = [];
+      const stocksActualizados: string[] = [];
+
       const updatePromises = products
         .filter((p) => p.sync.found_in_db)
         .filter(
@@ -236,17 +242,13 @@ export class WoocommerceService {
             );
             this.logger.log(`Producto id=${p.id} actualizado correctamente`);
             if (p.sync.price_match === false) {
-              await this.createActionNotification(
-                'Producto actualizado en WooCommerce',
-                `Se actualizó el precio del producto ${(p as any).name} (SKU ${(p as any).sku}) en WooCommerce.`,
-                `/articulos/ver/${(p.sync as any)._dbRef.id}`,
+              preciosActualizados.push(
+                `${(p as any).name} (SKU ${(p as any).sku})`,
               );
             }
             if (p.sync.stock_match === false) {
-              await this.createActionNotification(
-                'Stock actualizado en WooCommerce',
-                `Se actualizó el stock del producto ${(p as any).name} (SKU ${(p as any).sku}) en WooCommerce.`,
-                `/articulos/ver/${(p.sync as any)._dbRef.id}`,
+              stocksActualizados.push(
+                `${(p as any).name} (SKU ${(p as any).sku}): ${(p.sync as any)._dbRef.stock}`,
               );
             }
             p.sync['updated'] = true;
@@ -280,6 +282,7 @@ export class WoocommerceService {
         data: products,
         total: response.headers['x-wp-total'],
         totalPages: response.headers['x-wp-totalpages'],
+        cambios: { precios: preciosActualizados, stocks: stocksActualizados },
       };
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
@@ -557,21 +560,30 @@ export class WoocommerceService {
     let processedPages = 0;
     let totalPages = 1;
     const perPage = 100;
+    // Los cambios de todas las páginas se juntan para notificarlos una sola vez
+    // al final: si cada página avisara por su cuenta, el resumen de una página
+    // reemplazaría al de la anterior y se perdería lo anterior
+    const preciosActualizados: string[] = [];
+    const stocksActualizados: string[] = [];
 
     do {
-      const response = await this.listProducts(
-        {
-          page: processedPages + 1,
-          per_page: perPage,
-          status: 'any',
-        },
-        // La sincronizacion automatica solo reporta: no modifica precios ni
-        // stock en la tienda. La revision real la hace el job.
-        { soloLectura: true },
-      );
+      // Sin `opciones` la sincronización aplica los cambios: la base de datos
+      // es la fuente de verdad y su precio y stock quedan iguales en la tienda
+      const response = await this.listProducts({
+        page: processedPages + 1,
+        per_page: perPage,
+        status: 'any',
+      });
+      preciosActualizados.push(...(response.cambios?.precios ?? []));
+      stocksActualizados.push(...(response.cambios?.stocks ?? []));
       processedPages += 1;
       totalPages = Number(response.totalPages ?? 1) || 1;
     } while (processedPages < totalPages);
+
+    await this.notificarCambiosDeSincronizacion({
+      precios: preciosActualizados,
+      stocks: stocksActualizados,
+    });
 
     const createdFromMl = await this.syncPublishedProductFromMercadoLibre();
 
@@ -922,6 +934,38 @@ export class WoocommerceService {
       url,
       readed: false,
     });
+  }
+
+  /**
+   * Notifica los cambios de precio y stock aplicados a WooCommerce durante una
+   * sincronización.
+   *
+   * Emite como mucho un resumen por tipo de novedad y lo hace reemplazando a la
+   * notificación no leída anterior, de modo que ejecuciones seguidas no
+   * acumulen avisos repetidos.
+   */
+  async notificarCambiosDeSincronizacion(cambios?: {
+    precios?: string[];
+    stocks?: string[];
+  }) {
+    const precios = cambios?.precios ?? [];
+    const stocks = cambios?.stocks ?? [];
+
+    if (precios.length > 0) {
+      await this.reemplazarNotificacionNoLeida(
+        'Producto actualizado en WooCommerce',
+        `Se actualizó el precio de ${precios.length} producto(s) en WooCommerce: ${this.resumirLista(precios)}`,
+        '/articulos',
+      );
+    }
+
+    if (stocks.length > 0) {
+      await this.reemplazarNotificacionNoLeida(
+        'Stock actualizado en WooCommerce',
+        `Se actualizó el stock de ${stocks.length} producto(s) en WooCommerce: ${this.resumirLista(stocks)}`,
+        '/articulos',
+      );
+    }
   }
 
   /**

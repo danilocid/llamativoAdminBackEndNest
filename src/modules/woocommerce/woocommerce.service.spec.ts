@@ -235,10 +235,11 @@ describe('WoocommerceService', () => {
       data: [],
       total: '0',
       totalPages: '0',
+      cambios: { precios: [], stocks: [] },
     });
   });
 
-  it('debe crear notificaciones por actualizar producto y stock', async () => {
+  it('debe acumular los cambios de precio y stock sin notificar por producto', async () => {
     const dbProduct = {
       id: 10,
       cod_interno: 'SKU1',
@@ -291,26 +292,50 @@ describe('WoocommerceService', () => {
       .spyOn(service as any, 'findMercadoLibreProductBySku')
       .mockImplementation(async () => null);
 
-    await service.listProducts({ page: 1, per_page: 20, status: 'any' });
+    const result = await service.listProducts({
+      page: 1,
+      per_page: 20,
+      status: 'any',
+    });
 
+    // listProducts acumula los cambios y escribe en la tienda, pero no avisa
+    // por producto: la notificación la emite quien lo invoca, en un único
+    // resumen, para no acumular avisos con cada ejecución
+    expect(mockHttpService.post).toHaveBeenCalled();
+    expect(result.cambios.precios).toEqual(['Producto Woo (SKU SKU1)']);
+    expect(result.cambios.stocks).toEqual(['Producto Woo (SKU SKU1): 8']);
+    expect(mockNotificationRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('notificarCambiosDeSincronizacion emite un unico resumen por tipo de cambio', async () => {
+    await service.notificarCambiosDeSincronizacion({
+      precios: ['Producto Woo (SKU SKU1)', 'Otro (SKU SKU2)'],
+      stocks: ['Producto Woo (SKU SKU1): 8'],
+    });
+
+    expect(mockNotificationRepo.save).toHaveBeenCalledTimes(2);
     expect(mockNotificationRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Producto actualizado en WooCommerce',
-        description: expect.stringContaining(
-          'Se actualizó el precio del producto Producto Woo (SKU SKU1)',
-        ),
-        url: '/articulos/ver/10',
+        description: expect.stringContaining('2 producto(s)'),
       }),
     );
     expect(mockNotificationRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Stock actualizado en WooCommerce',
-        description: expect.stringContaining(
-          'Se actualizó el stock del producto Producto Woo (SKU SKU1)',
-        ),
-        url: '/articulos/ver/10',
+        description: expect.stringContaining('Producto Woo (SKU SKU1): 8'),
       }),
     );
+  });
+
+  it('notificarCambiosDeSincronizacion no avisa cuando no hubo cambios', async () => {
+    await service.notificarCambiosDeSincronizacion({
+      precios: [],
+      stocks: [],
+    });
+
+    expect(mockNotificationRepo.save).not.toHaveBeenCalled();
+    expect(mockNotificationRepo.delete).not.toHaveBeenCalled();
   });
 
   it('debe crear una notificación al crear producto en WooCommerce', async () => {

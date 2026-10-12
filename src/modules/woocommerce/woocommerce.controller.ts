@@ -11,8 +11,17 @@ export class WoocommerceController {
 
   @Get('products')
   //  @UseGuards(JwtAuthGuard)
-  listProducts(@Query() t: ListWoocommerceProductsDto) {
-    return this.woocommerceService.listProducts(t);
+  async listProducts(@Query() t: ListWoocommerceProductsDto) {
+    // `sincronizar` viene activado por defecto: con `false` solo se compara
+    const resultado = await this.woocommerceService.listProducts(t, {
+      soloLectura: t.sincronizar === false,
+    });
+
+    await this.woocommerceService.notificarCambiosDeSincronizacion(
+      resultado.cambios,
+    );
+
+    return resultado;
   }
 
   @Post('products/sync-from-mercado-libre')
