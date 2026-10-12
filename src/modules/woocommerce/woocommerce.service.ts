@@ -39,7 +39,10 @@ export class WoocommerceService {
       this.configService.get<string>('ML_SELLER_ID') ?? '169479376';
   }
 
-  async listProducts(t: ListWoocommerceProductsDto) {
+  async listProducts(
+    t: ListWoocommerceProductsDto,
+    opciones: { soloLectura?: boolean } = {},
+  ) {
     this.logger.log(
       `Consultando productos WooCommerce | page=${t.page} per_page=${t.per_page} status=${t.status ?? 'any'} search=${t.search ?? ''}`,
     );
@@ -197,6 +200,13 @@ export class WoocommerceService {
           (p) => p.sync.price_match === false || p.sync.stock_match === false,
         )
         .map(async (p) => {
+          // Modo solo lectura: no se escribe nada en la tienda, solo se
+          // reporta la comparacion. La revision y actualizacion de stock
+          // quedan reservadas para el job.
+          if (opciones.soloLectura === true) {
+            delete (p.sync as any)._dbRef;
+            return;
+          }
           const body: Record<string, any> = {};
           if (!p.sync.price_match) {
             body.regular_price = String(p.sync.db_price);
@@ -280,6 +290,203 @@ export class WoocommerceService {
     }
   }
 
+  /**
+   * Descarga todos los productos de WooCommerce paginando el catálogo completo.
+   */
+  private async descargarProductosWooCommerce(): Promise<any[]> {
+    const perPage = 100;
+    const wooProducts: any[] = [];
+    let page = 1;
+    let totalPages = 1;
+
+    do {
+      const response = await firstValueFrom(
+        this.httpService.get(`${this.baseUrl}/wp-json/wc/v3/products`, {
+          params: {
+            consumer_key: this.consumerKey,
+            consumer_secret: this.consumerSecret,
+            page,
+            per_page: perPage,
+            status: 'any',
+          },
+        }),
+      );
+
+      wooProducts.push(...((response.data as any[]) ?? []));
+      totalPages = Number(response.headers?.['x-wp-totalpages'] ?? 1) || 1;
+      page += 1;
+    } while (page <= totalPages);
+
+    return wooProducts;
+  }
+
+  /**
+   * Revisa el stock de cada producto de la base de datos (la fuente de verdad)
+   * y lo deja igual en WooCommerce.
+   *
+   * La revisión existente (`listProducts`) recorre los productos de
+   * WooCommerce hacia la base de datos, de modo que un producto que dejó de
+   * existir en la tienda nunca se visitaba. Este método hace el recorrido
+   * inverso: parte de la base de datos y exige que cada producto tenga su
+   * stock real en WooCommerce, además de detectar los que quedaron sin
+   * publicación en la tienda.
+   *
+   * Se ejecuta únicamente desde el job que sincroniza ventas de Mercado
+   * Libre y valida artículos inactivos (`setInactive`), nunca en la
+   * sincronización automática.
+   *
+   * Los productos cuya gestión de stock está desactivada en WooCommerce
+   * quedan fuera de la comparación, porque la tienda no lleva un stock que
+   * igualar.
+   */
+  async revisarStocksDesdeBaseDeDatos() {
+    const wooProducts = await this.descargarProductosWooCommerce();
+
+    // Misma guarda que en la validación de publicaciones de ML: sin catálogo
+    // confiable no se toca nada, para no dar de baja a todo el catálogo por
+    // una respuesta vacía o un problema de credenciales
+    if (wooProducts.length === 0) {
+      this.logger.warn(
+        'WooCommerce no devolvió productos: se omite la revisión de stocks',
+      );
+      return {
+        productosBD: 0,
+        productosWoo: 0,
+        stockActualizado: 0,
+        sinGestionDeStock: 0,
+        publicacionesFaltantes: 0,
+      };
+    }
+
+    // El producto de WooCommerce puede venir identificado por id_ps o por SKU
+    // (cod_interno o cod_barras), así que se indexa por ambas claves
+    const wooPorId = new Map<string, any>();
+    const wooPorSku = new Map<string, any>();
+    for (const woo of wooProducts) {
+      if (woo.id !== undefined && woo.id !== null) {
+        wooPorId.set(String(woo.id), woo);
+      }
+      const sku = woo.sku?.trim();
+      if (sku) wooPorSku.set(sku, woo);
+    }
+
+    const buscarPorSku = (sku?: string): any => {
+      const limpio = sku?.trim();
+      return limpio ? (wooPorSku.get(limpio) ?? null) : null;
+    };
+
+    const dbProducts = await this.productsRepo.find({
+      where: { deprecado: false },
+    });
+
+    let stockActualizado = 0;
+    let sinGestionDeStock = 0;
+    let publicacionesFaltantes = 0;
+    // El job corre con mucha frecuencia. En vez de dejar una notificación por
+    // producto y por corrida —que se acumularían, porque solo se eliminan las
+    // ya leídas— se juntan los cambios y se emite un único resumen que
+    // reemplaza al de la corrida anterior
+    const productosCorregidos: string[] = [];
+    const productosSinPublicacion: string[] = [];
+
+    for (const product of dbProducts) {
+      const woo =
+        (product.id_ps ? wooPorId.get(String(product.id_ps)) : null) ??
+        buscarPorSku(product.cod_interno) ??
+        buscarPorSku(product.cod_barras) ??
+        null;
+
+      if (!woo) {
+        // No existe en la tienda: solo importa si la base de datos decía que
+        // estaba publicado
+        if (product.publicado_ps) {
+          product.publicado_ps = false;
+          await this.productsRepo.save(product);
+          publicacionesFaltantes++;
+          productosSinPublicacion.push(
+            `${product.descripcion} (SKU ${product.cod_interno})`,
+          );
+          this.logger.warn(
+            `Publicación inexistente en WooCommerce | id=${product.id} SKU=${product.cod_interno} id_ps=${product.id_ps}`,
+          );
+        }
+        continue;
+      }
+
+      // WooCommerce no gestiona el stock de este producto: no hay valor con el
+      // que comparar, y activar la gestión queda fuera de esta revisión
+      if (!woo.manage_stock) {
+        sinGestionDeStock++;
+        continue;
+      }
+
+      const wooStock = woo.stock_quantity ?? 0;
+      if (wooStock === product.stock) continue;
+
+      try {
+        await firstValueFrom(
+          this.httpService.post(
+            `${this.baseUrl}/wp-json/wc/v3/products/${woo.id}`,
+            { stock_quantity: product.stock },
+            {
+              params: {
+                consumer_key: this.consumerKey,
+                consumer_secret: this.consumerSecret,
+              },
+              headers: {
+                'X-HTTP-Method-Override': 'PUT',
+              },
+            },
+          ),
+        );
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `Error actualizando stock en WooCommerce | id=${woo.id} SKU=${product.cod_interno} woo=${wooStock} bd=${product.stock} | ${message}`,
+        );
+        continue;
+      }
+
+      stockActualizado++;
+      productosCorregidos.push(
+        `${product.descripcion} (SKU ${product.cod_interno}): ${wooStock} → ${product.stock}`,
+      );
+      this.logger.log(
+        `Stock corregido desde la base de datos | SKU=${product.cod_interno} woo=${wooStock} bd=${product.stock}`,
+      );
+    }
+
+    const resumen = {
+      productosBD: dbProducts.length,
+      productosWoo: wooProducts.length,
+      stockActualizado,
+      sinGestionDeStock,
+      publicacionesFaltantes,
+    };
+    this.logger.log(
+      `Revisión de stocks desde la base de datos | ${JSON.stringify(resumen)}`,
+    );
+
+    // Solo se notifica cuando algo cambió, y en ese caso el resumen reemplaza
+    // al de la corrida anterior para no acumular repetidas
+    if (productosCorregidos.length > 0) {
+      await this.reemplazarNotificacionNoLeida(
+        'Stock actualizado en WooCommerce',
+        `Se actualizó el stock de ${productosCorregidos.length} producto(s) en WooCommerce desde la base de datos: ${this.resumirLista(productosCorregidos)}`,
+        '/articulos',
+      );
+    }
+    if (productosSinPublicacion.length > 0) {
+      await this.reemplazarNotificacionNoLeida(
+        'Producto sin publicación en WooCommerce',
+        `${productosSinPublicacion.length} producto(s) estaban marcados como publicados pero ya no existen en WooCommerce: ${this.resumirLista(productosSinPublicacion)}`,
+        '/articulos',
+      );
+    }
+
+    return resumen;
+  }
+
   private async findMercadoLibreProductBySku(sku: string) {
     try {
       const token = await this.mercadoLibreAuthService.getAuthToken();
@@ -352,11 +559,16 @@ export class WoocommerceService {
     const perPage = 100;
 
     do {
-      const response = await this.listProducts({
-        page: processedPages + 1,
-        per_page: perPage,
-        status: 'any',
-      });
+      const response = await this.listProducts(
+        {
+          page: processedPages + 1,
+          per_page: perPage,
+          status: 'any',
+        },
+        // La sincronizacion automatica solo reporta: no modifica precios ni
+        // stock en la tienda. La revision real la hace el job.
+        { soloLectura: true },
+      );
       processedPages += 1;
       totalPages = Number(response.totalPages ?? 1) || 1;
     } while (processedPages < totalPages);
@@ -679,6 +891,54 @@ export class WoocommerceService {
       url,
       readed: false,
     });
+  }
+
+  /**
+   * Guarda una notificación reemplazando a la anterior no leída del mismo
+   * título.
+   *
+   * El job de revisión corre con mucha frecuencia y `deleteReadedNotifications`
+   * solo elimina las que ya fueron leídas: sin este reemplazo, cada corrida
+   * dejaría una notificación nueva y las no leídas se acumularían sin fin.
+   */
+  private async reemplazarNotificacionNoLeida(
+    title: string,
+    description: string,
+    url?: string,
+  ) {
+    const anteriores = await this.notificationRepo.find({
+      where: { title, readed: false },
+    });
+
+    if (anteriores.length > 0) {
+      await this.notificationRepo.delete(anteriores.map((n) => n.id));
+    }
+
+    await this.notificationRepo.save({
+      title,
+      // El campo es un varchar(255): el resumen se corta para que la fila
+      // siempre se pueda guardar sin importar cuántos productos cambiaron
+      description: this.truncarTexto(description),
+      url,
+      readed: false,
+    });
+  }
+
+  /**
+   * Resume una lista de productos para el cuerpo de la notificación, que es un
+   * varchar(255) y no admite un detalle por cada producto.
+   */
+  private resumirLista(items: string[], maximo = 6): string {
+    return items.length <= maximo
+      ? items.join(' · ')
+      : `${items.slice(0, maximo).join(' · ')} … y ${items.length - maximo} más`;
+  }
+
+  /**
+   * Corta un texto para que quepa en un varchar(255) sin truncar la fila.
+   */
+  private truncarTexto(texto: string, maximo = 250): string {
+    return texto.length > maximo ? `${texto.slice(0, maximo - 1)}…` : texto;
   }
 
   private compareProductTitles(wooTitle?: string, mlTitle?: string): boolean {

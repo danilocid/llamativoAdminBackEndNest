@@ -234,6 +234,29 @@ export class ProductsService {
       );
     }
 
+    // Revisión de stocks hacia WooCommerce: la base de datos es la fuente de
+    // verdad y su stock debe quedar igual en la tienda. Se ejecuta solo aquí,
+    // dentro del job, y nunca en la sincronización automática.
+    try {
+      const wooStockResult =
+        await this.woocommerceService.revisarStocksDesdeBaseDeDatos();
+      await this.googleLoggingService.log(
+        'Revisión de stocks de WooCommerce ejecutada al validar artículos inactivos',
+        wooStockResult,
+        'INFO',
+        'setInactive',
+        'products',
+      );
+    } catch (error: unknown) {
+      await this.googleLoggingService.log(
+        'Error ejecutando la revisión de stocks de WooCommerce',
+        { error: error instanceof Error ? error.message : String(error) },
+        'WARNING',
+        'setInactive',
+        'products',
+      );
+    }
+
     // get all products with stock 0 and active true, but not deprecated
     const products = await this.productsRepository.find({
       where: { stock: 0, activo: true, deprecado: false },

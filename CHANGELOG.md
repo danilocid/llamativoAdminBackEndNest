@@ -5,6 +5,29 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.0.14] - 2026-10-12
+
+### Added
+
+- **Revisión de stocks desde la base de datos hacia WooCommerce** (`WoocommerceService.revisarStocksDesdeBaseDeDatos()`), ejecutada **únicamente por el job** que sincroniza ventas de Mercado Libre y valida artículos inactivos (`setInactive`)
+  - Recorre los productos no deprecados de la base de datos (la fuente de verdad) y exige que el stock de WooCommerce sea igual, empujando el valor real de la BD
+  - Detecta productos que la base de datos da por publicados (`publicado_ps = true`) pero que ya no existen en la tienda: se marcan como no publicados y se notifica conservando `id_ps` y `enlace_ps`
+  - El producto se localiza en WooCommerce por `id_ps` o por SKU (`cod_interno` / `cod_barras`)
+  - Los productos con gestión de stock desactivada en WooCommerce quedan fuera de la comparación
+  - Si WooCommerce no devuelve ningún producto se omite la revisión (con WARNING) para no dar de baja a todo el catálogo por una respuesta vacía
+  - Cada actualización tiene su try/catch y el bloque completo está protegido para no romper el job
+
+### Fixed
+
+- **Las notificaciones de la revisión de stocks ya no se acumulan en cada corrida del job.** El job corre con mucha frecuencia y `syncSales()` cambia el stock de la BD justo antes de la revisión, por lo que cada corrida generaba **una notificación por producto**; como `deleteReadedNotifications()` solo elimina las ya leídas, las no leídas se acumulaban sin límite
+  - Ahora los cambios se juntan y se emite **un único resumen** por tipo de novedad, que **reemplaza** a la notificación no leída anterior del mismo título
+  - El resumen solo se emite si hubo cambios reales, y su detalle se corta para caber en el `varchar(255)` del campo `description`
+
+### Changed
+
+- **La sincronización automática de WooCommerce ya no modifica la tienda.** `syncForNotifications()` ahora llama a `listProducts()` en modo solo lectura (`{ soloLectura: true }`): sigue comparando y reportando diferencias de precio y stock, pero no escribe en WooCommerce ni genera notificaciones de actualización
+  - `listProducts()` acepta la opción `opciones.soloLectura` para omitir por completo el bloque de escritura
+
 ## [2.0.13] - 2026-10-10
 
 ### Added

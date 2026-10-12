@@ -28,7 +28,7 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 
 ## Versión Actual
 
-**v2.0.13** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
+**v2.0.14** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
 
 ## Tecnologías
 
@@ -52,6 +52,7 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 - **Conteo aleatorio de inventario** con ajuste automático de stock
 - Integración con Mercado Libre (OAuth2, sincronización de productos)
 - **Validación de publicaciones activas de ML**: al sincronizar stock se verifica inversamente que todo producto marcado como publicado tenga realmente una publicación activa, y se corrige el flag si la publicación se cayó
+- **Revisión de stocks hacia WooCommerce**: dentro del job que sincroniza ventas ML y valida artículos inactivos se recorren los productos de la base de datos (la fuente de verdad) y se iguala el stock en WooCommerce. Detecta además productos con `publicado_ps = true` que ya no existen en la tienda. La revisión emite un único resumen que reemplaza al anterior para no acumular notificaciones, y la sincronización automática solo compara y reporta, sin escribir en la tienda
 - **Ventas de Mercado Libre**: sincronización de órdenes, listado y detalle, y asociación o vinculación con ventas del sistema
 - Logging centralizado con Google Cloud Platform
 - Sistema de notificaciones
@@ -154,17 +155,17 @@ npm run test:e2e
 **Cobertura Actual:**
 
 - **AuthService**: 4 tests (login, validaciones, JWT)
-- **ProductsService**: 24 tests (CRUD, inventario, deprecados)
+- **ProductsService**: 25 tests (CRUD, inventario, deprecados, revisión de stocks en el job)
 - **PurchasesService**: 17 tests (CRUD, reporte, importación RCV)
 - **InventoryService**: 15 tests (ajustes y conteos)
 - **ProductSyncService**: 17 tests (validación, SKU, lotes, publicaciones activas de ML)
 - **MercadoLibreService**: 12 tests (sincronización, variaciones, validación de publicaciones)
 - **MercadoLibreAuthService**: 9 tests (token y refresh)
 - **MercadoLibreController**: 5 tests
-- **WoocommerceService**: 5 tests
+- **WoocommerceService**: 17 tests (catálogo, sync ML, revisión de stocks, resumen anti-acumulación, solo lectura)
 - **WoocommerceController**: 2 tests
 - **TimestampsSubscriber**: 5 tests
-- **Total**: 115 tests unitarios en 11 suites
+- **Total**: 128 tests unitarios en 11 suites
 
 ## Estructura del Proyecto
 

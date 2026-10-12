@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -47,13 +47,16 @@ describe('WoocommerceService', () => {
     getProductDetailsFromMl: jest.fn(),
   };
 
-  const mockProductsRepo = {
+  const mockProductsRepo: any = {
     save: jest.fn(),
     createQueryBuilder: jest.fn(),
+    find: jest.fn(),
   };
 
-  const mockNotificationRepo = {
+  const mockNotificationRepo: any = {
     save: jest.fn(),
+    find: jest.fn(),
+    delete: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -77,6 +80,11 @@ describe('WoocommerceService', () => {
 
     service = module.get<WoocommerceService>(WoocommerceService);
     httpService = module.get<HttpService>(HttpService);
+
+    // Se reasignan en cada test porque jest.clearAllMocks() limpia las
+    // llamadas pero no las implementaciones
+    mockProductsRepo.find.mockResolvedValue([]);
+    mockNotificationRepo.find.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -340,5 +348,378 @@ describe('WoocommerceService', () => {
         url: 'https://woo.test/p/321',
       }),
     );
+  });
+
+  // ---------------------------------------------------------------------------
+  // revisarStocksDesdeBaseDeDatos
+  // ---------------------------------------------------------------------------
+  describe('revisarStocksDesdeBaseDeDatos', () => {
+    const resumenVacio = {
+      productosBD: 0,
+      productosWoo: 0,
+      stockActualizado: 0,
+      sinGestionDeStock: 0,
+      publicacionesFaltantes: 0,
+    };
+
+    it('omite la revision si WooCommerce no devuelve productos', async () => {
+      mockHttpService.get.mockReturnValue(of({ data: [], headers: {} }));
+
+      const result = await service.revisarStocksDesdeBaseDeDatos();
+
+      expect(result).toEqual(resumenVacio);
+      expect(mockProductsRepo.find).not.toHaveBeenCalled();
+      expect(mockNotificationRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('empuja el stock real de la base de datos a WooCommerce', async () => {
+      mockHttpService.get.mockReturnValue(
+        of({
+          data: [
+            { id: 10, sku: 'SKU-A', manage_stock: true, stock_quantity: 5 },
+          ],
+          headers: {},
+        }),
+      );
+      mockProductsRepo.find.mockResolvedValue([
+        {
+          id: 1,
+          cod_interno: 'SKU-A',
+          cod_barras: '789',
+          stock: 7,
+          publicado_ps: true,
+          id_ps: null,
+          descripcion: 'Delantal',
+        },
+      ]);
+      mockHttpService.post.mockReturnValue(of({ data: {} }));
+
+      const result = await service.revisarStocksDesdeBaseDeDatos();
+
+      expect(result.stockActualizado).toBe(1);
+      expect(mockHttpService.post).toHaveBeenCalledWith(
+        'https://woo.test/wp-json/wc/v3/products/10',
+        { stock_quantity: 7 },
+        expect.any(Object),
+      );
+    });
+
+    it('no hace nada cuando el stock de la tienda ya coincide', async () => {
+      mockHttpService.get.mockReturnValue(
+        of({
+          data: [
+            { id: 10, sku: 'SKU-A', manage_stock: true, stock_quantity: 7 },
+          ],
+          headers: {},
+        }),
+      );
+      mockProductsRepo.find.mockResolvedValue([
+        {
+          id: 1,
+          cod_interno: 'SKU-A',
+          cod_barras: '789',
+          stock: 7,
+          publicado_ps: true,
+          id_ps: null,
+        },
+      ]);
+
+      const result = await service.revisarStocksDesdeBaseDeDatos();
+
+      expect(result.stockActualizado).toBe(0);
+      expect(mockHttpService.post).not.toHaveBeenCalled();
+      expect(mockNotificationRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('identifica el producto por id_ps cuando el SKU no coincide', async () => {
+      mockHttpService.get.mockReturnValue(
+        of({
+          data: [{ id: 42, sku: '', manage_stock: true, stock_quantity: 1 }],
+          headers: {},
+        }),
+      );
+      mockProductsRepo.find.mockResolvedValue([
+        {
+          id: 1,
+          cod_interno: 'SKU-A',
+          cod_barras: '789',
+          stock: 4,
+          publicado_ps: true,
+          id_ps: '42',
+        },
+      ]);
+      mockHttpService.post.mockReturnValue(of({ data: {} }));
+
+      const result = await service.revisarStocksDesdeBaseDeDatos();
+
+      expect(result.stockActualizado).toBe(1);
+      expect(mockHttpService.post).toHaveBeenCalledWith(
+        'https://woo.test/wp-json/wc/v3/products/42',
+        { stock_quantity: 4 },
+        expect.any(Object),
+      );
+    });
+
+    it('omite los productos de WooCommerce sin gestion de stock', async () => {
+      mockHttpService.get.mockReturnValue(
+        of({
+          data: [
+            { id: 10, sku: 'SKU-A', manage_stock: false, stock_quantity: 5 },
+          ],
+          headers: {},
+        }),
+      );
+      mockProductsRepo.find.mockResolvedValue([
+        {
+          id: 1,
+          cod_interno: 'SKU-A',
+          cod_barras: '789',
+          stock: 7,
+          publicado_ps: true,
+          id_ps: null,
+        },
+      ]);
+
+      const result = await service.revisarStocksDesdeBaseDeDatos();
+
+      expect(result.sinGestionDeStock).toBe(1);
+      expect(result.stockActualizado).toBe(0);
+      expect(mockHttpService.post).not.toHaveBeenCalled();
+    });
+
+    it('marca como no publicado el producto que ya no existe en la tienda', async () => {
+      mockHttpService.get.mockReturnValue(
+        of({
+          data: [{ id: 10, sku: 'OTRO', manage_stock: true, stock_quantity: 1 }],
+          headers: {},
+        }),
+      );
+      mockProductsRepo.find.mockResolvedValue([
+        {
+          id: 5,
+          cod_interno: 'SKU-A',
+          cod_barras: '789',
+          stock: 3,
+          publicado_ps: true,
+          id_ps: '999',
+          descripcion: 'Delantal',
+        },
+      ]);
+
+      const result = await service.revisarStocksDesdeBaseDeDatos();
+
+      expect(result.publicacionesFaltantes).toBe(1);
+      expect(mockProductsRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 5, publicado_ps: false }),
+      );
+      expect(mockNotificationRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Producto sin publicación en WooCommerce',
+          url: '/articulos',
+        }),
+      );
+    });
+
+    it('ignora los productos ausentes que no estaban publicados', async () => {
+      mockHttpService.get.mockReturnValue(
+        of({
+          data: [{ id: 10, sku: 'OTRO', manage_stock: true, stock_quantity: 1 }],
+          headers: {},
+        }),
+      );
+      mockProductsRepo.find.mockResolvedValue([
+        {
+          id: 5,
+          cod_interno: 'SKU-A',
+          cod_barras: '789',
+          stock: 3,
+          publicado_ps: false,
+          id_ps: null,
+        },
+      ]);
+
+      const result = await service.revisarStocksDesdeBaseDeDatos();
+
+      expect(result.publicacionesFaltantes).toBe(0);
+      expect(mockProductsRepo.save).not.toHaveBeenCalled();
+      expect(mockNotificationRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('no detiene la revision si falla una actualizacion', async () => {
+      mockHttpService.get.mockReturnValue(
+        of({
+          data: [
+            { id: 10, sku: 'SKU-A', manage_stock: true, stock_quantity: 5 },
+            { id: 11, sku: 'SKU-B', manage_stock: true, stock_quantity: 5 },
+          ],
+          headers: {},
+        }),
+      );
+      mockProductsRepo.find.mockResolvedValue([
+        {
+          id: 1,
+          cod_interno: 'SKU-A',
+          cod_barras: '789',
+          stock: 7,
+          publicado_ps: true,
+          id_ps: null,
+          descripcion: 'A',
+        },
+        {
+          id: 2,
+          cod_interno: 'SKU-B',
+          cod_barras: '790',
+          stock: 9,
+          publicado_ps: true,
+          id_ps: null,
+          descripcion: 'B',
+        },
+      ]);
+      mockHttpService.post
+        .mockReturnValueOnce(throwError(() => new Error('fallo')))
+        .mockReturnValueOnce(of({ data: {} }));
+
+      const result = await service.revisarStocksDesdeBaseDeDatos();
+
+      expect(mockHttpService.post).toHaveBeenCalledTimes(2);
+      expect(result.stockActualizado).toBe(1);
+    });
+
+    // --- comportamiento anti-acumulacion de notificaciones ------------------
+
+    it('emite una sola notificacion de resumen por corrida, no una por producto', async () => {
+      mockHttpService.get.mockReturnValue(
+        of({
+          data: [
+            { id: 10, sku: 'SKU-A', manage_stock: true, stock_quantity: 5 },
+            { id: 11, sku: 'SKU-B', manage_stock: true, stock_quantity: 5 },
+          ],
+          headers: {},
+        }),
+      );
+      mockProductsRepo.find.mockResolvedValue([
+        {
+          id: 1,
+          cod_interno: 'SKU-A',
+          cod_barras: '789',
+          stock: 7,
+          publicado_ps: true,
+          id_ps: null,
+          descripcion: 'A',
+        },
+        {
+          id: 2,
+          cod_interno: 'SKU-B',
+          cod_barras: '790',
+          stock: 9,
+          publicado_ps: true,
+          id_ps: null,
+          descripcion: 'B',
+        },
+      ]);
+      mockHttpService.post.mockReturnValue(of({ data: {} }));
+
+      await service.revisarStocksDesdeBaseDeDatos();
+
+      expect(mockHttpService.post).toHaveBeenCalledTimes(2);
+      expect(mockNotificationRepo.save).toHaveBeenCalledTimes(1);
+      expect(mockNotificationRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Stock actualizado en WooCommerce',
+          description: expect.stringContaining('2 producto(s)'),
+          readed: false,
+        }),
+      );
+    });
+
+    it('no deja notificacion de resumen cuando no hubo cambios', async () => {
+      mockHttpService.get.mockReturnValue(
+        of({
+          data: [
+            { id: 10, sku: 'SKU-A', manage_stock: true, stock_quantity: 7 },
+          ],
+          headers: {},
+        }),
+      );
+      mockProductsRepo.find.mockResolvedValue([
+        {
+          id: 1,
+          cod_interno: 'SKU-A',
+          cod_barras: '789',
+          stock: 7,
+          publicado_ps: true,
+          id_ps: null,
+        },
+      ]);
+
+      await service.revisarStocksDesdeBaseDeDatos();
+
+      expect(mockNotificationRepo.save).not.toHaveBeenCalled();
+      expect(mockNotificationRepo.delete).not.toHaveBeenCalled();
+    });
+
+    it('reemplaza la notificacion anterior no leida del mismo titulo', async () => {
+      mockHttpService.get.mockReturnValue(
+        of({
+          data: [
+            { id: 10, sku: 'SKU-A', manage_stock: true, stock_quantity: 5 },
+          ],
+          headers: {},
+        }),
+      );
+      mockProductsRepo.find.mockResolvedValue([
+        {
+          id: 1,
+          cod_interno: 'SKU-A',
+          cod_barras: '789',
+          stock: 7,
+          publicado_ps: true,
+          id_ps: null,
+          descripcion: 'A',
+        },
+      ]);
+      mockHttpService.post.mockReturnValue(of({ data: {} }));
+      mockNotificationRepo.find.mockResolvedValue([{ id: 7 }, { id: 8 }]);
+
+      await service.revisarStocksDesdeBaseDeDatos();
+
+      expect(mockNotificationRepo.find).toHaveBeenCalledWith({
+        where: { title: 'Stock actualizado en WooCommerce', readed: false },
+      });
+      expect(mockNotificationRepo.delete).toHaveBeenCalledWith([7, 8]);
+    });
+
+    it('trunca el detalle del resumen para caber en el varchar(255)', async () => {
+      const skus = Array.from({ length: 12 }, (_, i) => `SKU-${i}`);
+      mockHttpService.get.mockReturnValue(
+        of({
+          data: skus.map((sku, i) => ({
+            id: 100 + i,
+            sku,
+            manage_stock: true,
+            stock_quantity: 0,
+          })),
+          headers: {},
+        }),
+      );
+      mockProductsRepo.find.mockResolvedValue(
+        skus.map((sku, i) => ({
+          id: i + 1,
+          cod_interno: sku,
+          cod_barras: `789${i}`,
+          stock: 5,
+          publicado_ps: true,
+          id_ps: null,
+          descripcion: `Producto ${sku}`,
+        })),
+      );
+      mockHttpService.post.mockReturnValue(of({ data: {} }));
+
+      await service.revisarStocksDesdeBaseDeDatos();
+
+      const guardada = mockNotificationRepo.save.mock.calls[0][0];
+      expect(guardada.description.length).toBeLessThanOrEqual(250);
+      expect(guardada.description).toContain('12 producto(s)');
+    });
   });
 });

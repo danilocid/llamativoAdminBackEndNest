@@ -99,6 +99,13 @@ describe('ProductsService', () => {
     syncForNotifications: jest
       .fn()
       .mockImplementation(async () => ({ processedPages: 1 })),
+    revisarStocksDesdeBaseDeDatos: jest.fn().mockImplementation(async () => ({
+      productosBD: 0,
+      productosWoo: 0,
+      stockActualizado: 0,
+      sinGestionDeStock: 0,
+      publicacionesFaltantes: 0,
+    })),
   };
 
   beforeEach(async () => {
@@ -469,6 +476,16 @@ describe('ProductsService', () => {
       expect(mockMercadoLibreService.listProducts).toHaveBeenCalled();
       expect(mockProductsRepository.save).toHaveBeenCalled();
       expect(mockGoogleLoggingService.log).toHaveBeenCalled();
+    });
+
+    it('debe revisar los stocks hacia WooCommerce dentro del job', async () => {
+      mockProductsRepository.find.mockResolvedValue([] as Products[]);
+
+      await service.setInactive(false);
+
+      expect(
+        _woocomerceService.revisarStocksDesdeBaseDeDatos,
+      ).toHaveBeenCalledTimes(1);
     });
 
     it('should delete all notifications when clearNotifications is true', async () => {
