@@ -57,7 +57,7 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 - Logging centralizado con Google Cloud Platform
 - Sistema de notificaciones
 - Sincronización del RCV del SII mediante el servicio de scraping independiente `llamativoAdminRcvScrapp` (el backend solo recibe los registros)
-- Suite completa de pruebas unitarias (50 tests)
+- Suite completa de pruebas unitarias (186 tests)
 - Soporte para productos deprecados
 - Resúmenes de inventario con cálculos de rentabilidad
 
@@ -157,7 +157,10 @@ npm run test:e2e
 - **AuthService**: 4 tests (login, validaciones, JWT)
 - **ProductsService**: 25 tests (CRUD, inventario, deprecados, revisión de stocks en el job)
 - **PurchasesService**: 17 tests (CRUD, reporte, importación RCV)
-- **InventoryService**: 15 tests (ajustes y conteos)
+- **InventoryService**: 37 tests (listado, guardado, ajustes, conteos, reporte mensual y lookup por SKU)
+- **NotificationsService**: 13 tests (listado, creación, límite de 30 y marcado de leídas)
+- **GoogleLoggingService**: 7 tests (severidad, método/servicio por defecto y fallo de envío)
+- **ListWoocommerceProductsDto**: 13 tests (flag `sincronizar`, paginación y validación de `status`)
 - **ProductSyncService**: 17 tests (validación, SKU, lotes, publicaciones activas de ML)
 - **MercadoLibreService**: 12 tests (sincronización, variaciones, validación de publicaciones)
 - **MercadoLibreAuthService**: 9 tests (token y refresh)
@@ -165,7 +168,7 @@ npm run test:e2e
 - **WoocommerceService**: 19 tests (catálogo, sync ML, revisión de stocks, resumen anti-acumulación, sincronización)
 - **WoocommerceController**: 3 tests (listProducts con flag de sincronización y delegación)
 - **TimestampsSubscriber**: 5 tests
-- **Total**: 131 tests unitarios en 11 suites
+- **Total**: 186 tests unitarios en 14 suites
 
 ## Estructura del Proyecto
 

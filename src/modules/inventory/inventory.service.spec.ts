@@ -77,9 +77,17 @@ describe('InventoryService', () => {
     where: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
+    leftJoinAndSelect: jest.fn().mockReturnThis(),
+    leftJoin: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
     getOne: jest.fn().mockResolvedValue(resolvedValue),
     getMany: jest.fn().mockResolvedValue(
       resolvedValue == null ? [] : [resolvedValue],
+    ),
+    getManyAndCount: jest.fn().mockResolvedValue(
+      resolvedValue == null ? [[], 0] : [[resolvedValue], 1],
     ),
   });
 
@@ -89,6 +97,7 @@ describe('InventoryService', () => {
     createQueryBuilder: jest.fn(),
     save: jest.fn(),
     findOne: jest.fn(),
+    find: jest.fn(),
   };
 
   const mockInventoryDetailsRepository = {
@@ -161,6 +170,17 @@ describe('InventoryService', () => {
 
     service = module.get<InventoryService>(InventoryService);
     userRepository = module.get(getRepositoryToken(User));
+
+    // Estado base conocido: jest.clearAllMocks() limpia las llamadas pero no
+    // las implementaciones, así que se reasignan las que los casos siguientes
+    // necesitan
+    mockInventoryRepository.createQueryBuilder.mockReturnValue(
+      buildQueryBuilderMock(null),
+    );
+    mockInventoryRepository.find.mockResolvedValue([]);
+    mockInventoryDetailsRepository.createQueryBuilder.mockReturnValue(
+      buildQueryBuilderMock(null),
+    );
   });
 
   afterEach(() => {
@@ -418,6 +438,410 @@ describe('InventoryService', () => {
       expect(savedInventory.observaciones).toBe(
         'Conteo aleatorio - Tornillo M6',
       );
+    });
+  });
+
+  // ─── getAllInventory ─────────────────────────────────────────────────────────
+
+  describe('getAllInventory', () => {
+    it('pagina de a 10 y devuelve el total de registros', async () => {
+      const qb = buildQueryBuilderMock(mockInventory);
+      qb.getManyAndCount.mockResolvedValue([[mockInventory], 42]);
+      mockInventoryRepository.createQueryBuilder.mockReturnValue(qb);
+
+      const result = await service.getAllInventory({ page: 1 } as any);
+
+      expect(mockInventoryRepository.createQueryBuilder).toHaveBeenCalledWith(
+        'inventory',
+      );
+      expect(qb.skip).toHaveBeenCalledWith(0);
+      expect(qb.take).toHaveBeenCalledWith(10);
+      expect(result.serverResponseCode).toBe(200);
+      expect(result.data).toEqual([mockInventory]);
+      expect(result.count).toBe(42);
+    });
+
+    it('saltea los primeros 10 registros a partir de la pagina 2', async () => {
+      const qb = buildQueryBuilderMock(null);
+      mockInventoryRepository.createQueryBuilder.mockReturnValue(qb);
+
+      await service.getAllInventory({ page: 2 } as any);
+
+      expect(qb.skip).toHaveBeenCalledWith(10);
+    });
+
+    it('ordena por id descendente y trae usuario y tipo de movimiento', async () => {
+      const qb = buildQueryBuilderMock(null);
+      mockInventoryRepository.createQueryBuilder.mockReturnValue(qb);
+
+      await service.getAllInventory({ page: 1 } as any);
+
+      expect(qb.orderBy).toHaveBeenCalledWith('inventory.id', 'DESC');
+      expect(qb.leftJoinAndSelect).toHaveBeenCalledWith(
+        'inventory.usuario',
+        'User',
+      );
+      expect(qb.leftJoinAndSelect).toHaveBeenCalledWith(
+        'inventory.tipo_movimiento',
+        'ProductMovementType',
+      );
+    });
+
+    it('devuelve una lista vacia cuando no hay ajustes', async () => {
+      const qb = buildQueryBuilderMock(null);
+      mockInventoryRepository.createQueryBuilder.mockReturnValue(qb);
+
+      const result = await service.getAllInventory({ page: 1 } as any);
+
+      expect(result.data).toEqual([]);
+      expect(result.count).toBe(0);
+    });
+  });
+
+  // ─── getInventoryById ────────────────────────────────────────────────────────
+
+  describe('getInventoryById', () => {
+    it('devuelve 404 cuando el ajuste no existe', async () => {
+      mockInventoryRepository.createQueryBuilder.mockReturnValue(
+        buildQueryBuilderMock(null),
+      );
+
+      const result = await service.getInventoryById({ id: 99 });
+
+      expect(result.serverResponseCode).toBe(404);
+      expect(result.serverResponseMessage).toBe('Inventory not found');
+      expect(result.data).toBeNull();
+      expect(
+        mockInventoryDetailsRepository.createQueryBuilder,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('devuelve el ajuste junto con el detalle de articulos', async () => {
+      const qb = buildQueryBuilderMock(mockInventory);
+      mockInventoryRepository.createQueryBuilder.mockReturnValue(qb);
+      const qbDetails = buildQueryBuilderMock({ id: 7 });
+      mockInventoryDetailsRepository.createQueryBuilder.mockReturnValue(
+        qbDetails,
+      );
+
+      const result = await service.getInventoryById({ id: 1 });
+
+      expect(result.serverResponseCode).toBe(200);
+      expect(result.data).toEqual(mockInventory);
+      expect(result.inventoryDetails).toEqual([{ id: 7 }]);
+      expect(qb.where).toHaveBeenCalledWith('inventory.id = :id', { id: 1 });
+      expect(qbDetails.where).toHaveBeenCalledWith(
+        'ajuste_de_inventario_id = :id',
+        { id: 1 },
+      );
+    });
+  });
+
+  // ─── saveInventory ───────────────────────────────────────────────────────────
+
+  describe('saveInventory', () => {
+    const dtoCon = (articulos: any[]) =>
+      ({
+        costo_neto: 100,
+        costo_imp: 19,
+        entradas: 5,
+        salidas: 2,
+        obs: 'Recepcion de mercaderia',
+        tipo_movimiento: 1,
+        articulos,
+      }) as any;
+
+    const prepararGuardado = (product: Products) => {
+      mockProductMovementTypeRepository.findOne.mockResolvedValue(
+        mockMovementType,
+      );
+      mockProductsRepository.findOne.mockResolvedValue(product);
+      // TypeORM rellena el id generado sobre la misma instancia que recibe, por
+      // eso el servicio puede leer inventory.id sin reasignar el resultado
+      mockInventoryRepository.save.mockImplementation(async (i: any) => {
+        i.id = 5;
+        return i;
+      });
+      mockInventoryDetailsRepository.save.mockImplementation(async (d: any) => d);
+      mockProductMovementDetailRepository.save.mockImplementation(
+        async (d: any) => d,
+      );
+      mockProductsRepository.save.mockImplementation(async (p: any) => p);
+    };
+
+    it('crea el ajuste, su detalle y actualiza el stock del producto', async () => {
+      const product = { ...mockProduct, stock: 10, activo: true };
+      prepararGuardado(product);
+
+      const result = await service.saveInventory(
+        dtoCon([
+          { id: 1, costo_neto: 100, costo_imp: 19, entradas: 5, salidas: 2 },
+        ]),
+      );
+
+      expect(result.serverResponseCode).toBe(201);
+      expect(result.serverResponseMessage).toBe('Inventory created');
+      expect(mockInventoryRepository.save).toHaveBeenCalledTimes(1);
+      expect(mockInventoryDetailsRepository.save).toHaveBeenCalledTimes(1);
+      // stock 10 + 5 entradas - 2 salidas = 13
+      expect(product.stock).toBe(13);
+      expect(mockProductsRepository.save).toHaveBeenCalledTimes(1);
+      expect(mockProductMovementDetailRepository.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('deja el stock en 0 cuando las salidas lo dejarian negativo', async () => {
+      const product = { ...mockProduct, stock: 2, activo: true };
+      prepararGuardado(product);
+
+      await service.saveInventory(
+        dtoCon([
+          { id: 1, costo_neto: 100, costo_imp: 19, entradas: 0, salidas: 10 },
+        ]),
+      );
+
+      expect(product.stock).toBe(0);
+    });
+
+    it('reactiva un producto inactivo al registrar el movimiento', async () => {
+      const product = { ...mockProduct, stock: 5, activo: false };
+      prepararGuardado(product);
+
+      await service.saveInventory(
+        dtoCon([
+          { id: 1, costo_neto: 100, costo_imp: 19, entradas: 1, salidas: 0 },
+        ]),
+      );
+
+      expect(product.activo).toBe(true);
+    });
+
+    it('genera un detalle por cada articulo recibido', async () => {
+      const product = { ...mockProduct, stock: 5, activo: true };
+      prepararGuardado(product);
+
+      await service.saveInventory(
+        dtoCon([
+          { id: 1, costo_neto: 100, costo_imp: 19, entradas: 1, salidas: 0 },
+          { id: 2, costo_neto: 50, costo_imp: 9, entradas: 2, salidas: 1 },
+        ]),
+      );
+
+      expect(mockInventoryDetailsRepository.save).toHaveBeenCalledTimes(2);
+      expect(mockProductMovementDetailRepository.save).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // ─── getInventoryReportByMonth ───────────────────────────────────────────────
+
+  describe('getInventoryReportByMonth', () => {
+    it('suma los totales de los ajustes del mes', async () => {
+      mockInventoryRepository.find.mockResolvedValue([
+        { costo_neto: 100, costo_imp: 19, entradas: 5, salidas: 2 },
+        { costo_neto: 200, costo_imp: 38, entradas: 1, salidas: 4 },
+      ]);
+
+      const result = await service.getInventoryReportByMonth(3, 2026);
+
+      expect(result.serverResponseCode).toBe(200);
+      expect(result.data.totals).toEqual({
+        count: 2,
+        entradas: 6,
+        salidas: 6,
+        costoNeto: 300,
+        costoImp: 57,
+        costoTotal: 357,
+      });
+    });
+
+    it('consulta ordenado por fecha ascendente con sus relaciones', async () => {
+      mockInventoryRepository.find.mockResolvedValue([]);
+
+      await service.getInventoryReportByMonth(3, 2026);
+
+      expect(mockInventoryRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          order: { createdAt: 'ASC' },
+          relations: ['tipo_movimiento', 'usuario'],
+        }),
+      );
+    });
+
+    it('devuelve ceros cuando no hubo ajustes en el mes', async () => {
+      mockInventoryRepository.find.mockResolvedValue([]);
+
+      const result = await service.getInventoryReportByMonth(1, 2026);
+
+      expect(result.data.totals.count).toBe(0);
+      expect(result.data.totals.costoNeto).toBe(0);
+      expect(result.data.totals.costoTotal).toBe(0);
+    });
+  });
+
+  // ─── lookupBySku ─────────────────────────────────────────────────────────────
+
+  describe('lookupBySku', () => {
+    it('devuelve 400 cuando el sku viene vacio', async () => {
+      const result = await service.lookupBySku('   ');
+
+      expect(result.serverResponseCode).toBe(400);
+      expect(result.serverResponseMessage).toBe('SKU requerido');
+      expect(result.data).toBeNull();
+      expect(mockProductsRepository.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('devuelve 400 cuando el sku no se envia', async () => {
+      const result = await service.lookupBySku(undefined as any);
+
+      expect(result.serverResponseCode).toBe(400);
+    });
+
+    it('devuelve 404 cuando no hay producto activo con ese sku', async () => {
+      mockProductsRepository.createQueryBuilder.mockReturnValue(
+        buildQueryBuilderMock(null),
+      );
+
+      const result = await service.lookupBySku('NOEXISTE');
+
+      expect(result.serverResponseCode).toBe(404);
+      expect(result.serverResponseMessage).toBe('Producto no encontrado');
+      expect(result.data).toBeNull();
+    });
+
+    it('busca por codigo interno o de barras, solo activos y sin espacios', async () => {
+      const qb = buildQueryBuilderMock(mockProduct);
+      mockProductsRepository.createQueryBuilder.mockReturnValue(qb);
+
+      const result = await service.lookupBySku(' 123456 ');
+
+      expect(qb.where).toHaveBeenCalledWith(
+        'product.cod_interno = :sku OR product.cod_barras = :sku',
+        { sku: '123456' },
+      );
+      expect(qb.andWhere).toHaveBeenCalledWith('product.activo = :activo', {
+        activo: true,
+      });
+      expect(result.serverResponseCode).toBe(200);
+      expect(result.serverResponseMessage).toBe('Producto encontrado');
+      expect(result.data).toEqual(mockProduct);
+    });
+  });
+
+  // ─── submitBulkCount ─────────────────────────────────────────────────────────
+
+  describe('submitBulkCount', () => {
+    /** Resuelve los productos por id sin depender del orden de las llamadas */
+    const resolverPorId = (productos: Record<number, Products>) => {
+      mockProductsRepository.findOne.mockImplementation(async (criterio: any) =>
+        productos[criterio?.where?.id] ?? null,
+      );
+    };
+
+    const prepararConteo = () => {
+      mockUserRepository.findOne.mockResolvedValue(mockUser);
+      mockProductMovementTypeRepository.findOne.mockResolvedValue(
+        mockMovementType,
+      );
+      mockInventoryRepository.save.mockImplementation(async (i: any) => {
+        i.id = 9;
+        return i;
+      });
+      mockInventoryDetailsRepository.save.mockImplementation(async (d: any) => d);
+      mockProductMovementDetailRepository.save.mockImplementation(
+        async (d: any) => d,
+      );
+      mockProductsRepository.save.mockImplementation(async (p: any) => p);
+    };
+
+    it('crea un ajuste con los totales cuando hay diferencias', async () => {
+      prepararConteo();
+      const p1 = { ...mockProduct, id: 1, stock: 10 };
+      const p2 = { ...mockProduct, id: 2, stock: 5, cod_interno: 'COD002' };
+      resolverPorId({ 1: p1, 2: p2 });
+
+      const result = await service.submitBulkCount(
+        {
+          items: [
+            { product_id: 1, stock_counted: 12 },
+            { product_id: 2, stock_counted: 5 },
+          ],
+        } as any,
+        1,
+      );
+
+      expect(result.serverResponseCode).toBe(201);
+      expect(result.data.adjustmentCreated).toBe(true);
+      expect(result.data.inventoryId).toBe(9);
+      expect(result.data.itemsProcessed).toBe(2);
+
+      const guardado = mockInventoryRepository.save.mock.calls[0][0];
+      expect(guardado.entradas).toBe(2);
+      expect(guardado.salidas).toBe(0);
+      expect(guardado.usuario).toEqual(mockUser);
+      expect(p1.stock).toBe(12);
+      expect(p1.last_cont).toBeInstanceOf(Date);
+      expect(p2.last_cont).toBeInstanceOf(Date);
+    });
+
+    it('suma salidas y costos cuando el conteo dio de menos', async () => {
+      prepararConteo();
+      resolverPorId({ 1: { ...mockProduct, id: 1, stock: 10 } });
+
+      const result = await service.submitBulkCount(
+        { items: [{ product_id: 1, stock_counted: 6 }] } as any,
+        1,
+      );
+
+      const guardado = mockInventoryRepository.save.mock.calls[0][0];
+      expect(guardado.entradas).toBe(0);
+      expect(guardado.salidas).toBe(4);
+      expect(guardado.costoNeto ?? guardado.costo_neto).toBe(4000);
+      expect(result.data.adjustmentCreated).toBe(true);
+    });
+
+    it('no crea ajuste cuando todos los conteos coinciden', async () => {
+      prepararConteo();
+      const product = { ...mockProduct, id: 1, stock: 10 };
+      resolverPorId({ 1: product });
+
+      const result = await service.submitBulkCount(
+        { items: [{ product_id: 1, stock_counted: 10 }] } as any,
+        1,
+      );
+
+      expect(result.data.adjustmentCreated).toBe(false);
+      expect(result.data.inventoryId).toBeNull();
+      expect(result.data.itemsProcessed).toBe(1);
+      expect(mockInventoryRepository.save).not.toHaveBeenCalled();
+      expect(mockInventoryDetailsRepository.save).not.toHaveBeenCalled();
+      // igual se refresca la fecha de ultimo conteo
+      expect(product.last_cont).toBeInstanceOf(Date);
+    });
+
+    it('omite los productos que no existen', async () => {
+      prepararConteo();
+      resolverPorId({});
+
+      const result = await service.submitBulkCount(
+        { items: [{ product_id: 99, stock_counted: 5 }] } as any,
+        1,
+      );
+
+      expect(result.data.adjustmentCreated).toBe(false);
+      expect(result.data.itemsProcessed).toBe(0);
+      expect(mockInventoryRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('clampa el stock a 0 cuando el conteo da negativo', async () => {
+      prepararConteo();
+      const product = { ...mockProduct, id: 1, stock: 10 };
+      resolverPorId({ 1: product });
+
+      await service.submitBulkCount(
+        { items: [{ product_id: 1, stock_counted: -3 }] } as any,
+        1,
+      );
+
+      expect(product.stock).toBe(0);
     });
   });
 });

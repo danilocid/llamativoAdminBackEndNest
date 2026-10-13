@@ -5,6 +5,20 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.0.16] - 2026-10-13
+
+### Added
+
+- **Suite de `NotificationsService`** (13 tests): listado, creación, límite de 30 notificaciones, purga de las de más de una semana y marcado como leída con su 404
+- **Suite de `GoogleLoggingService`** (7 tests): severidad `INFO` por defecto, método y servicio por defecto, ruta de desarrollo en consola y fallo de envío a Google Cloud
+- **Suite de `ListWoocommerceProductsDto`** (13 tests): valida el flag `sincronizar` con los valores reales del query string (`'false'`, `'true'`, ausente) además de paginación y `status`
+- **Ampliación de `InventoryService`** de 15 a 37 tests: `getAllInventory`, `getInventoryById`, `saveInventory`, `getInventoryReportByMonth`, `lookupBySku` y `submitBulkCount`
+
+### Changed
+
+- Cobertura de tests unitarios de **60.53% a 69.93%** de sentencias (38.88% a 48.71% de funciones), de 131 a **186 tests en 14 suites**
+- `InventoryService`, `NotificationsService` y `GoogleLoggingService` quedan al **100%** de sentencias, branch y funciones
+
 ## [2.0.15] - 2026-10-12
 
 ### Added
