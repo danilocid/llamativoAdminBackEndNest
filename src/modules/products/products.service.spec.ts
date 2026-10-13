@@ -11,6 +11,7 @@ import { NotFoundException } from '@nestjs/common';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { WoocommerceService } from '../woocommerce/woocommerce.service';
+import { Sales } from '../sales/entities/sales.entity';
 import {
   afterEach,
   beforeEach,
@@ -80,6 +81,32 @@ describe('ProductsService', () => {
     save: jest.fn(),
   };
 
+  // proyectarLlegadaBoleta() hace dos consultas con el mismo query builder:
+  // primero MAX(documento) y despues las fechas de las ultimas boletas. El
+  // mock distingue cual resolvio segun la columna que se selecciona
+  let ventasMaxDocumento: any[] = [{ lastDocument: 342 }];
+  let ventasFechas: any[] = [];
+
+  const mockSalesRepository: any = {
+    createQueryBuilder: jest.fn(() => {
+      const seleccion: string[] = [];
+      const qb: any = {};
+      qb.select = jest.fn((expresion: string) => {
+        seleccion.push(expresion);
+        return qb;
+      });
+      qb.where = jest.fn().mockReturnValue(qb);
+      qb.orderBy = jest.fn().mockReturnValue(qb);
+      qb.limit = jest.fn().mockReturnValue(qb);
+      qb.getRawMany = jest.fn(async () =>
+        seleccion.some((expresion) => expresion.includes('MAX'))
+          ? ventasMaxDocumento
+          : ventasFechas,
+      );
+      return qb;
+    }),
+  };
+
   const mockNotificationsService: any = {
     deleteAllNotifications: jest.fn().mockImplementation(async () => undefined),
     deleteReadedNotifications: jest
@@ -121,6 +148,10 @@ describe('ProductsService', () => {
           useValue: mockNotificationRepository,
         },
         {
+          provide: getRepositoryToken(Sales),
+          useValue: mockSalesRepository,
+        },
+        {
           provide: NotificationsService,
           useValue: mockNotificationsService,
         },
@@ -152,6 +183,10 @@ describe('ProductsService', () => {
     _woocomerceService = module.get<WoocommerceService>(WoocommerceService);
     _googleLoggingService =
       module.get<GoogleLoggingService>(GoogleLoggingService);
+
+    // Estado base de la proyeccion de boleta para cada prueba
+    ventasMaxDocumento = [{ lastDocument: 342 }];
+    ventasFechas = [];
   });
 
   afterEach(() => {
@@ -576,6 +611,112 @@ describe('ProductsService', () => {
         expect.objectContaining({
           where: expect.objectContaining({ deprecado: false }),
         }),
+      );
+    });
+
+    // ─── Proyeccion de la boleta 1000 ────────────────────────────────────────
+
+    const queryBuilders = () =>
+      mockSalesRepository.createQueryBuilder.mock.results.map(
+        (r: any) => r.value,
+      );
+
+    it('incluye la proyeccion de boleta en la respuesta', async () => {
+      mockProductsRepository.find.mockResolvedValue([] as Products[]);
+
+      const result = await service.getInventoryResume();
+
+      expect(result.data.boleta).toBeDefined();
+      expect(result.data.boleta.target).toBe(1000);
+    });
+
+    it('calcula dias restantes como el promedio por las boletas faltantes', async () => {
+      mockProductsRepository.find.mockResolvedValue([] as Products[]);
+      // Ultimas boletas emitidas: 10 dias de separacion entre cada una
+      ventasFechas = [
+        { fecha: '2026-01-21' },
+        { fecha: '2026-01-11' },
+        { fecha: '2026-01-01' },
+      ];
+
+      const result = await service.getInventoryResume();
+      const boleta = result.data.boleta;
+
+      // 1000 - 342 = 658 boletas faltantes
+      expect(boleta.current).toBe(342);
+      expect(boleta.remaining).toBe(658);
+      // (21 ene - 1 ene) = 20 dias, en 2 saltos => 10 dias por boleta
+      expect(boleta.avgDaysBetween).toBeCloseTo(10, 5);
+      expect(boleta.daysRemaining).toBeCloseTo(6580, 5);
+
+      const esperada = Date.now() + 6580 * 86400000;
+      expect(
+        Math.abs(new Date(boleta.estimatedDate).getTime() - esperada),
+      ).toBeLessThan(1000);
+    });
+
+    it('marca alcanzada la boleta cuando ya llego al objetivo', async () => {
+      mockProductsRepository.find.mockResolvedValue([] as Products[]);
+      ventasMaxDocumento = [{ lastDocument: 1000 }];
+
+      const result = await service.getInventoryResume();
+      const boleta = result.data.boleta;
+
+      expect(boleta.current).toBe(1000);
+      expect(boleta.remaining).toBe(0);
+      expect(boleta.reached).toBe(true);
+      expect(boleta.daysRemaining).toBe(0);
+      // Se estima para hoy, porque no hay nada que esperar
+      expect(boleta.estimatedDate).not.toBeNull();
+    });
+
+    it('no estima fecha cuando no hay suficientes boletas para promediar', async () => {
+      mockProductsRepository.find.mockResolvedValue([] as Products[]);
+      ventasFechas = [{ fecha: '2026-01-01' }];
+
+      const result = await service.getInventoryResume();
+      const boleta = result.data.boleta;
+
+      expect(boleta.reached).toBe(false);
+      expect(boleta.avgDaysBetween).toBeNull();
+      expect(boleta.daysRemaining).toBeNull();
+      expect(boleta.estimatedDate).toBeNull();
+    });
+
+    it('no estima fecha cuando no se emitio ninguna boleta', async () => {
+      mockProductsRepository.find.mockResolvedValue([] as Products[]);
+      ventasMaxDocumento = [];
+      ventasFechas = [];
+
+      const result = await service.getInventoryResume();
+      const boleta = result.data.boleta;
+
+      expect(boleta.current).toBe(0);
+      expect(boleta.remaining).toBe(1000);
+      expect(boleta.estimatedDate).toBeNull();
+    });
+
+    it('filtra las boletas electronicas y limita la muestra a 100', async () => {
+      mockProductsRepository.find.mockResolvedValue([] as Products[]);
+
+      await service.getInventoryResume();
+
+      const [consultaMax, consultaFechas] = queryBuilders();
+
+      // 39 es el id del tipo de documento de boleta electronica
+      expect(consultaMax.where).toHaveBeenCalledWith(
+        'sales.tipo_documento = :tipo',
+        { tipo: 39 },
+      );
+      expect(consultaFechas.where).toHaveBeenCalledWith(
+        'sales.tipo_documento = :tipo',
+        { tipo: 39 },
+      );
+      expect(consultaFechas.limit).toHaveBeenCalledWith(100);
+      // La primera consulta trae el maximo, no las fechas
+      expect(consultaMax.select).toHaveBeenCalledWith(
+        'MAX(sales.documento)',
+        'lastDocument',
       );
     });
   });

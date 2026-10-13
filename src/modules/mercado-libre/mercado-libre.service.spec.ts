@@ -77,6 +77,9 @@ describe('MercadoLibreService', () => {
     log: jest.fn().mockResolvedValue(undefined),
   };
 
+  // Se nombra para poder inspeccionar las condiciones del filtro de paquete
+  const mockVentaMlRepository = createMockRepository();
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -107,7 +110,7 @@ describe('MercadoLibreService', () => {
         },
         {
           provide: getRepositoryToken(VentaMl),
-          useValue: createMockRepository(),
+          useValue: mockVentaMlRepository,
         },
         {
           provide: getRepositoryToken(DetalleVentaMl),
@@ -174,6 +177,75 @@ describe('MercadoLibreService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  describe('getVentasMl', () => {
+    const crearQueryBuilderVentas = () => ({
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getCount: jest.fn().mockResolvedValue(1),
+      getMany: jest.fn().mockResolvedValue([]),
+    });
+
+    const usarQueryBuilder = () => {
+      const qb = crearQueryBuilderVentas();
+      mockVentaMlRepository.createQueryBuilder.mockReturnValue(qb);
+      return qb;
+    };
+
+    it('filtra por numero de paquete con coincidencia parcial', async () => {
+      const qb = usarQueryBuilder();
+
+      const result = await service.getVentasMl(
+        1,
+        10,
+        undefined,
+        undefined,
+        ' 123456789 ',
+      );
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'venta_ml.id_envio_ml LIKE :paquete',
+        { paquete: '%123456789%' },
+      );
+      expect(result.serverResponseCode).toBe(200);
+      expect(result.total).toBe(1);
+    });
+
+    it('no agrega la condicion de paquete cuando el valor viene vacio', async () => {
+      const qb = usarQueryBuilder();
+
+      await service.getVentasMl(1, 10, undefined, undefined, '   ');
+
+      expect(qb.andWhere).not.toHaveBeenCalledWith(
+        'venta_ml.id_envio_ml LIKE :paquete',
+        expect.anything(),
+      );
+    });
+
+    it('combina el paquete con el resto de filtros y la paginacion', async () => {
+      const qb = usarQueryBuilder();
+
+      await service.getVentasMl(2, 5, 'paid', 'false', 'ABC');
+
+      expect(qb.andWhere).toHaveBeenCalledWith('venta_ml.estado = :estado', {
+        estado: 'paid',
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith('venta_ml.venta_id IS NULL');
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'venta_ml.id_envio_ml LIKE :paquete',
+        { paquete: '%ABC%' },
+      );
+      expect(qb.skip).toHaveBeenCalledWith(5);
+      expect(qb.take).toHaveBeenCalledWith(5);
+      expect(qb.orderBy).toHaveBeenCalledWith(
+        'venta_ml.fecha_venta_ml',
+        'DESC',
+      );
+    });
   });
 
   describe('getProductListFromML', () => {

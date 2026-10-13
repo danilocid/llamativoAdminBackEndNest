@@ -5,6 +5,17 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [2.0.17] - 2026-10-13
+
+### Added
+
+- **Buscador por número de paquete en la lista de ventas de Mercado Libre**: nuevo query param `paquete` en `GET /mercado-libre/ventas-ml` que filtra por `id_envio_ml` con coincidencia parcial. En el frontend es un campo de texto que se puede enviar con Enter o con el botón de búsqueda
+- **Proyección de llegada a la boleta 1000 en el resumen del dashboard**: `GET /products/inventory` devuelve ahora `data.boleta` con el número de boleta actual, las que faltan, el promedio de días entre las últimas 100 boletas electrónicas, los días restantes y la fecha estimada
+
+### Changed
+
+- `getInventoryResume` consulta la tabla `ventas` para proyectar la fecha, usando el tipo de documento **39** (boleta electrónica) y `MAX(documento)` como número actual, el mismo criterio que el formulario de venta usa para sugerir el siguiente número
+
 ## [2.0.16] - 2026-10-13
 
 ### Added

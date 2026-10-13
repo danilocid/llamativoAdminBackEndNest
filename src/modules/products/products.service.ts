@@ -12,6 +12,16 @@ import { MercadoLibreService } from '../mercado-libre/mercado-libre.service';
 import { Injectable } from '@nestjs/common';
 import { GoogleLoggingService } from 'src/common/services/google-logging.service';
 import { WoocommerceService } from '../woocommerce/woocommerce.service';
+import { Sales } from '../sales/entities/sales.entity';
+
+// Tipo de documento de la boleta electronica en la tabla tipo_documento
+const TIPO_BOLETA_ELECTRONICA = 39;
+// Numero de boleta hasta el que se proyecta la llegada
+const OBJETIVO_BOLETA = 1000;
+// Muestras de boletas usadas para promediar el ritmo de emision
+const MUESTRA_BOLETAS = 100;
+// Milisegundos de un dia, para pasar de intervalos a dias y de dias a fecha
+const MS_POR_DIA = 1000 * 60 * 60 * 24;
 
 @Injectable()
 export class ProductsService {
@@ -20,6 +30,8 @@ export class ProductsService {
     private productsRepository: Repository<Products>,
     @InjectRepository(Notification)
     private notificationRepository: Repository<Notification>,
+    @InjectRepository(Sales)
+    private salesRepository: Repository<Sales>,
     private readonly notificationsService: NotificationsService,
     private mercadoLibreService: MercadoLibreService,
     private readonly woocommerceService: WoocommerceService,
@@ -486,6 +498,73 @@ export class ProductsService {
     return found.length > 0;
   }
 
+  /**
+   * Proyecta la fecha en la que se emitira la boleta 1000.
+   *
+   * Toma las ultimas boletas electronicas emitidas, promedia los dias que
+   * pasan entre una y otra y multiplica ese ritmo por las boletas que faltan
+   * para el objetivo.
+   */
+  private async proyectarLlegadaBoleta() {
+    const proyeccion = {
+      target: OBJETIVO_BOLETA,
+      current: 0,
+      remaining: OBJETIVO_BOLETA,
+      avgDaysBetween: null as number | null,
+      daysRemaining: null as number | null,
+      estimatedDate: null as string | null,
+      reached: false,
+    };
+
+    // Ultimo numero de boleta emitido. Es el mismo criterio que el formulario
+    // de venta usa para sugerir el siguiente numero (lastEmited)
+    const emitidas = await this.salesRepository
+      .createQueryBuilder('sales')
+      .select('MAX(sales.documento)', 'lastDocument')
+      .where('sales.tipo_documento = :tipo', { tipo: TIPO_BOLETA_ELECTRONICA })
+      .getRawMany();
+
+    proyeccion.current = Number(emitidas[0]?.lastDocument ?? 0);
+    proyeccion.remaining = Math.max(0, OBJETIVO_BOLETA - proyeccion.current);
+    proyeccion.reached = proyeccion.remaining === 0;
+
+    if (proyeccion.reached) {
+      proyeccion.daysRemaining = 0;
+      proyeccion.estimatedDate = new Date().toISOString();
+      return proyeccion;
+    }
+
+    // Ultimas boletas emitidas, de la mas reciente a la mas antigua
+    const boletas = await this.salesRepository
+      .createQueryBuilder('sales')
+      .select('sales.fecha', 'fecha')
+      .where('sales.tipo_documento = :tipo', { tipo: TIPO_BOLETA_ELECTRONICA })
+      .orderBy('sales.fecha', 'DESC')
+      .limit(MUESTRA_BOLETAS)
+      .getRawMany();
+
+    // Sin al menos dos boletas no hay intervalo que promediar
+    if (boletas.length < 2) {
+      return proyeccion;
+    }
+
+    const marcas = boletas
+      .map((fila) => new Date(fila.fecha).getTime())
+      .sort((a, b) => a - b);
+
+    // El promedio de los intervalos consecutivos equivale al tramo total
+    // dividido en la cantidad de saltos: (ultima - primera) / (n - 1)
+    const tramoDias = (marcas[marcas.length - 1] - marcas[0]) / MS_POR_DIA;
+    proyeccion.avgDaysBetween = tramoDias / (marcas.length - 1);
+    proyeccion.daysRemaining =
+      proyeccion.avgDaysBetween * proyeccion.remaining;
+    proyeccion.estimatedDate = new Date(
+      Date.now() + proyeccion.daysRemaining * MS_POR_DIA,
+    ).toISOString();
+
+    return proyeccion;
+  }
+
   // get inventory resume
   async getInventoryResume(): Promise<ResponseDto> {
     let totalUnits = 0;
@@ -508,9 +587,11 @@ export class ProductsService {
       totalProfit += product.stock * (salePrice - costPrice);
     });
 
+    const boleta = await this.proyectarLlegadaBoleta();
+
     await this.googleLoggingService.log(
       'Resumen de inventario calculado',
-      { totalUnits, totalCost, totalSale, totalProfit },
+      { totalUnits, totalCost, totalSale, totalProfit, boleta },
       'INFO',
       'getInventoryResume',
       'products',
@@ -524,6 +605,7 @@ export class ProductsService {
         totalCost,
         totalSale,
         totalProfit,
+        boleta,
       },
     };
   }

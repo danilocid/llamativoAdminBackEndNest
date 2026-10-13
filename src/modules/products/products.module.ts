@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Products } from './entities/products.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { Sales } from '../sales/entities/sales.entity';
 import { HttpModule } from '@nestjs/axios';
 import { MercadoLibreModule } from '../mercado-libre/mercado-libre.module';
 import { GoogleLoggingService } from 'src/common/services/google-logging.service';
@@ -12,7 +13,7 @@ import { WoocommerceModule } from '../woocommerce/woocommerce.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Products, Notification]),
+    TypeOrmModule.forFeature([Products, Notification, Sales]),
     HttpModule,
     MercadoLibreModule,
     WoocommerceModule,

@@ -51,6 +51,7 @@ export class MercadoLibreController {
   }
 
   @Get('ventas-ml')
+  @ApiQuery({ name: 'paquete', required: false, type: String, description: 'Buscar por numero de paquete (id de envio de Mercado Libre)' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Número de página (default: 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Cantidad por página (default: 10)' })
   @ApiQuery({ name: 'estado', required: false, type: String, description: 'Filtrar por estado (paid, delivered, cancelled, etc.)' })
@@ -60,12 +61,14 @@ export class MercadoLibreController {
     @Query('limit') limit?: number,
     @Query('estado') estado?: string,
     @Query('asociada') asociada?: string,
+    @Query('paquete') paquete?: string,
   ) {
     return this.mercadoLibreService.getVentasMl(
       page || 1,
       limit || 10,
       estado,
       asociada,
+      paquete,
     );
   }
 }

@@ -845,7 +845,13 @@ export class MercadoLibreService {
     }
   }
 
-  async getVentasMl(page = 1, limit = 10, estado?: string, asociada?: string) {
+  async getVentasMl(
+    page = 1,
+    limit = 10,
+    estado?: string,
+    asociada?: string,
+    paquete?: string,
+  ) {
     const query = this.ventaMlRepository
       .createQueryBuilder('venta_ml')
       .leftJoinAndSelect('venta_ml.detalles', 'detalles');
@@ -858,6 +864,15 @@ export class MercadoLibreService {
       query.andWhere('venta_ml.venta_id IS NOT NULL');
     } else if (asociada === 'false') {
       query.andWhere('venta_ml.venta_id IS NULL');
+    }
+
+    // Busqueda por numero de paquete: se permite coincidencia parcial, ya que
+    // el id de envio suele pegarse completo desde Mercado Libre
+    const busquedaPaquete = paquete?.trim();
+    if (busquedaPaquete) {
+      query.andWhere('venta_ml.id_envio_ml LIKE :paquete', {
+        paquete: `%${busquedaPaquete}%`,
+      });
     }
 
     query.orderBy('venta_ml.fecha_venta_ml', 'DESC');

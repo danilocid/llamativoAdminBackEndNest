@@ -57,7 +57,7 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 - Logging centralizado con Google Cloud Platform
 - Sistema de notificaciones
 - Sincronización del RCV del SII mediante el servicio de scraping independiente `llamativoAdminRcvScrapp` (el backend solo recibe los registros)
-- Suite completa de pruebas unitarias (186 tests)
+- Suite completa de pruebas unitarias (195 tests)
 - Soporte para productos deprecados
 - Resúmenes de inventario con cálculos de rentabilidad
 
@@ -155,20 +155,20 @@ npm run test:e2e
 **Cobertura Actual:**
 
 - **AuthService**: 4 tests (login, validaciones, JWT)
-- **ProductsService**: 25 tests (CRUD, inventario, deprecados, revisión de stocks en el job)
+- **ProductsService**: 31 tests (CRUD, inventario, deprecados, revisión de stocks en el job y proyección de la boleta 1000)
 - **PurchasesService**: 17 tests (CRUD, reporte, importación RCV)
 - **InventoryService**: 37 tests (listado, guardado, ajustes, conteos, reporte mensual y lookup por SKU)
 - **NotificationsService**: 13 tests (listado, creación, límite de 30 y marcado de leídas)
 - **GoogleLoggingService**: 7 tests (severidad, método/servicio por defecto y fallo de envío)
 - **ListWoocommerceProductsDto**: 13 tests (flag `sincronizar`, paginación y validación de `status`)
 - **ProductSyncService**: 17 tests (validación, SKU, lotes, publicaciones activas de ML)
-- **MercadoLibreService**: 12 tests (sincronización, variaciones, validación de publicaciones)
+- **MercadoLibreService**: 15 tests (sincronización, variaciones, validación de publicaciones y búsqueda por paquete)
 - **MercadoLibreAuthService**: 9 tests (token y refresh)
 - **MercadoLibreController**: 5 tests
 - **WoocommerceService**: 19 tests (catálogo, sync ML, revisión de stocks, resumen anti-acumulación, sincronización)
 - **WoocommerceController**: 3 tests (listProducts con flag de sincronización y delegación)
 - **TimestampsSubscriber**: 5 tests
-- **Total**: 186 tests unitarios en 14 suites
+- **Total**: 195 tests unitarios en 14 suites
 
 ## Estructura del Proyecto
 
@@ -209,7 +209,7 @@ src/
 - `GET /products/:id` - Obtener producto por ID
 - `POST /products` - Crear producto
 - `PUT /products` - Actualizar producto
-- `GET /products/inventory/resume` - Resumen de inventario
+- `GET /products/inventory` - Resumen de inventario (incluye `data.boleta` con la proyección de llegada a la boleta 1000)
 - `GET /products/inactive` - Marcar productos sin stock como inactivos (parámetro `skipNoPublicadoNotification` para omitir notificación)
 - `POST /products/set-active` - Activar productos con stock
 
@@ -247,7 +247,7 @@ src/
 - `GET /mercado-libre/callback` - Callback de autorización
 - `POST /mercado-libre/sync` - Sincronizar productos
 - `GET /mercado-libre/sync-sales` - Sincronizar órdenes desde Mercado Libre (genera notificaciones)
-- `GET /mercado-libre/ventas-ml` - Listar ventas de Mercado Libre
+- `GET /mercado-libre/ventas-ml` - Listar ventas de Mercado Libre (filtros `page`, `limit`, `estado`, `asociada` y `paquete` por número de envío, con coincidencia parcial)
 - `GET /mercado-libre/ventas-ml/:id` - Detalle de venta ML (órdenes, productos, comisión y envío)
 - `POST /mercado-libre/ventas-ml/asociar` - Crear una venta del sistema desde una venta ML (acepta `producto_mapping` para productos sin SKU)
 - `POST /mercado-libre/ventas-ml/vincular` - Vincular una venta ML a una venta ya existente del sistema
