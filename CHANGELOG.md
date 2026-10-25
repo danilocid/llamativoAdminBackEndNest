@@ -5,6 +5,15 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [Unreleased]
+
+## [2.0.18] - 2026-10-24
+
+### Fixed
+
+- **Seguridad: los endpoints de Mercado Libre ahora exigen JWT** — el módulo respondía sin token: `GET /mercado-libre/ventas-ml` y `GET /mercado-libre/ventas-ml/:id` exponían ventas con datos de compradores, y `GET /mercado-libre/sync-sales`, `POST /mercado-libre/ventas-ml/asociar` y `POST /mercado-libre/ventas-ml/vincular` permitían escribir sin autenticación. Se añadió `@UseGuards(JwtAuthGuard)` a los 7 endpoints de datos (`list-products`, `list-sales`, `sync-sales`, `ventas-ml`, `ventas-ml/:id`, `ventas-ml/asociar` y `ventas-ml/vincular`)
+- `GET /mercado-libre` (callback OAuth) queda sin guard de forma deliberada: los servidores de Mercado Libre redirigen el navegador a esa URL sin JWT. Como mejora pendiente debería validar el parámetro `state`
+
 ## [2.0.17] - 2026-10-13
 
 ### Added

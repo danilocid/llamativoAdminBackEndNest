@@ -28,7 +28,7 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 
 ## Versión Actual
 
-**v2.0.15** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
+**v2.0.18** - Ver [CHANGELOG.md](CHANGELOG.md) para detalles de cambios.
 
 ## Tecnologías
 
@@ -243,9 +243,11 @@ src/
 
 ### Mercado Libre
 
-- `GET /mercado-libre/auth` - Iniciar OAuth2
-- `GET /mercado-libre/callback` - Callback de autorización
-- `POST /mercado-libre/sync` - Sincronizar productos
+> **Autenticación**: todos los endpoints de esta sección requieren `Authorization: Bearer <JWT>`, excepto el callback OAuth (los servidores de Mercado Libre redirigen el navegador a esa URL sin token).
+
+- `GET /mercado-libre` - Callback OAuth de Mercado Libre (recibe `code` o `error` de la redirección de ML; sin JWT por ser el redirect de autorización)
+- `GET /mercado-libre/list-products` - Listar las publicaciones activas del vendedor según Mercado Libre
+- `GET /mercado-libre/list-sales` - Listar las últimas 25 órdenes del vendedor según Mercado Libre
 - `GET /mercado-libre/sync-sales` - Sincronizar órdenes desde Mercado Libre (genera notificaciones)
 - `GET /mercado-libre/ventas-ml` - Listar ventas de Mercado Libre (filtros `page`, `limit`, `estado`, `asociada` y `paquete` por número de envío, con coincidencia parcial)
 - `GET /mercado-libre/ventas-ml/:id` - Detalle de venta ML (órdenes, productos, comisión y envío)
