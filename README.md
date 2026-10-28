@@ -193,7 +193,8 @@ src/
 │   ├── purchases/          # Registro de compras + importación RCV
 │   ├── receptions/         # Recepciones de mercancía
 │   ├── reports/            # Reportes y estadísticas
-│   └── sales/              # Ventas y transacciones
+│   ├── sales/              # Ventas y transacciones
+│   └── settings/           # Configuraciones del sistema + avisos por Telegram
 └── main.ts                 # Punto de entrada de la aplicación
 ```
 
@@ -232,6 +233,22 @@ src/
 1. El scraping se dispara fuera del backend: `GET /rcv/sincronizar?mes=&anio=` del servicio `llamativoAdminRcvScrapp` (endpoint sin autenticación; desde la Pi: `pnpm run sync` o `curl`).
 2. El servicio de scraping se autentica en el SII, descarga el RCV y envía los registros a `POST /purchases/import` (JWT).
 3. El backend dedupe, crea proveedores faltantes y registra las compras; si algo falla se crea una notificación.
+
+### Configuraciones (tabla `settings`)
+
+- `GET /settings` - Listar todos los parámetros (`id`, `name`, `parameter`, `createdAt`, `updatedAt`)
+- `POST /settings` - Crear un parámetro
+- `PUT /settings/:name` - Actualizar el valor de un parámetro (lo crea si no existe)
+- `DELETE /settings/:name` - Eliminar un parámetro
+- `POST /settings/telegram/test` - Enviar un mensaje de prueba al chat de Telegram
+
+Parámetros de Telegram usados por los avisos:
+
+- `telegram_bot_token` - Token del bot (obtenido de @BotFather)
+- `telegram_chat_id` - Chat ID de la conversación de destino
+
+Cuando ambos tienen valor, cada **nueva venta de Mercado Libre** y cada
+**nueva compra registrada desde el RCV** genera también un mensaje en el chat.
 
 ### Ventas
 

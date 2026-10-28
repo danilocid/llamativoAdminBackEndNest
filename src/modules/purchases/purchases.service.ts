@@ -13,6 +13,7 @@ import { GoogleLoggingService } from 'src/common/services/google-logging.service
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ImportRcvDto } from './dto/import-rcv.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TelegramService } from '../settings/telegram.service';
 
 @Injectable()
 export class PurchasesService {
@@ -31,6 +32,7 @@ export class PurchasesService {
     private notificationRepository: Repository<Notification>,
     private readonly googleLoggingService: GoogleLoggingService,
     private readonly notificationsService: NotificationsService,
+    private readonly telegramService: TelegramService,
   ) {}
 
   async getTypes() {
@@ -138,12 +140,17 @@ export class PurchasesService {
             where: { id: purchase.tipo_documento?.id },
           });
           const tipoNombre = tipoDocumento?.tipo || 'Documento';
+          const titulo = `${tipoNombre} N° ${purchase.documento} registrado`;
+          const descripcion = 'Compra registrada exitosamente';
           const notification = this.notificationRepository.create({
-            title: `${tipoNombre} N° ${purchase.documento} registrado`,
-            description: `Compra registrada exitosamente`,
+            title: titulo,
+            description: descripcion,
             url: '/compras',
           });
           await this.notificationRepository.save(notification);
+
+          // Aviso por Telegram de la nueva compra encontrada (nunca interrumpe la importación).
+          await this.telegramService.sendNotification(titulo, descripcion);
         }
       }
 

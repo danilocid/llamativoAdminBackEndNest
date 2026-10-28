@@ -7,6 +7,13 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [2.0.19] - 2026-10-27
+
+### Added
+
+- **Módulo de Configuraciones (`/settings`)** — nueva tabla `settings` (`id`, `name`, `parameter`, `createdAt`, `updatedAt`, nombre de tabla en inglés) con migración `1793059200000-CreateSettingsTable` que además siembra `telegram_bot_token` y `telegram_chat_id`. Endpoints: `GET /settings`, `POST /settings`, `PUT /settings/:name` (upsert), `DELETE /settings/:name` y `POST /settings/telegram/test`, todos con JWT
+- **Avisos por Telegram de ventas ML y compras** — nuevo `TelegramService` que envía `sendMessage` al chat configurado (`telegram_bot_token` + `telegram_chat_id` desde la BD, sin variables de entorno). Se dispara al registrar una nueva compra desde el RCV (`purchases.service`) y al crear una notificación de venta de Mercado Libre (`mercado-libre.service`). Los fallos se loguean y nunca interrumpen el flujo de negocio
+
 ## [2.0.18] - 2026-10-24
 
 ### Fixed

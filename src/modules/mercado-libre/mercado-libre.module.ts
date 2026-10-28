@@ -20,10 +20,12 @@ import { DocumentType } from '../common/entities/document_type.entity';
 import { PaymentMethod } from '../common/entities/payment_method.entity';
 import { ProductMovementDetail } from '../products-movements/entities/product_movement_detail.entity';
 import { ProductMovementType } from '../products-movements/entities/product_movement_type.entity';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
   imports: [
     HttpModule,
+    SettingsModule,
     TypeOrmModule.forFeature([
       MercadoLibreToken, Products, Notification, VentaMl, DetalleVentaMl,
       Sales, SalesDetails, SalesExtraCosts, SalesExtraCostDetails,

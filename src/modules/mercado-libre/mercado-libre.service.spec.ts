@@ -7,6 +7,7 @@ import { InternalServerErrorException } from '@nestjs/common';
 import { MercadoLibreService } from './mercado-libre.service';
 import { MercadoLibreAuthService } from './mercado-libre-auth.service';
 import { ProductSyncService } from './product-sync.service';
+import { TelegramService } from '../settings/telegram.service';
 import { Products } from '../products/entities/products.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { GoogleLoggingService } from '../../common/services/google-logging.service';
@@ -77,6 +78,10 @@ describe('MercadoLibreService', () => {
     log: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockTelegramService = {
+    sendNotification: jest.fn().mockResolvedValue(true),
+  };
+
   // Se nombra para poder inspeccionar las condiciones del filtro de paquete
   const mockVentaMlRepository = createMockRepository();
 
@@ -95,6 +100,10 @@ describe('MercadoLibreService', () => {
         {
           provide: ProductSyncService,
           useValue: mockProductSyncService,
+        },
+        {
+          provide: TelegramService,
+          useValue: mockTelegramService,
         },
         {
           provide: getRepositoryToken(Products),

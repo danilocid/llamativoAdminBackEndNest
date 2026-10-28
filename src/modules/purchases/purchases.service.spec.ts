@@ -9,6 +9,7 @@ import { DocumentType } from '../common/entities/document_type.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { GoogleLoggingService } from 'src/common/services/google-logging.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TelegramService } from '../settings/telegram.service';
 import { BadRequestException } from '@nestjs/common';
 
 describe('PurchasesService', () => {
@@ -85,6 +86,10 @@ describe('PurchasesService', () => {
     limitNotifications: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockTelegramService = {
+    sendNotification: jest.fn().mockResolvedValue(true),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -116,6 +121,10 @@ describe('PurchasesService', () => {
         {
           provide: NotificationsService,
           useValue: mockNotificationsService,
+        },
+        {
+          provide: TelegramService,
+          useValue: mockTelegramService,
         },
       ],
     }).compile();

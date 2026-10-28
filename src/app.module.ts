@@ -18,6 +18,7 @@ import { MercadoLibreModule } from './modules/mercado-libre/mercado-libre.module
 import { WoocommerceModule } from './modules/woocommerce/woocommerce.module';
 import { GoogleLoggingModule } from './common/services/google-logging.module';
 import { GoogleDriveModule } from './modules/google-drive/google-drive.module';
+import { SettingsModule } from './modules/settings/settings.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { GoogleDriveModule } from './modules/google-drive/google-drive.module';
     MercadoLibreModule,
     WoocommerceModule,
     GoogleDriveModule,
+    SettingsModule,
   ],
   controllers: [],
   providers: [

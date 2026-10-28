@@ -24,6 +24,7 @@ import { PaymentMethod } from '../common/entities/payment_method.entity';
 import { ProductMovementDetail } from '../products-movements/entities/product_movement_detail.entity';
 import { ProductMovementType } from '../products-movements/entities/product_movement_type.entity';
 import { AsociarVentaMlDto } from './dto/asociar-venta-ml.dto';
+import { TelegramService } from '../settings/telegram.service';
 
 /**
  * Fecha de corte para la sincronización de ventas de Mercado Libre.
@@ -39,6 +40,7 @@ export class MercadoLibreService {
     private readonly httpService: HttpService,
     private readonly mercadoLibreAuthService: MercadoLibreAuthService,
     private readonly productSyncService: ProductSyncService,
+    private readonly telegramService: TelegramService,
     @InjectRepository(Products)
     private readonly productsRepository: Repository<Products>,
     @InjectRepository(Notification)
@@ -818,6 +820,10 @@ export class MercadoLibreService {
             description: descripcion,
             url,
           });
+
+          // Aviso por Telegram de la nueva venta de Mercado Libre
+          // (nunca interrumpe la sincronización).
+          await this.telegramService.sendNotification(titulo, descripcion);
         }
       }
 
