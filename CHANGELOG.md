@@ -7,6 +7,12 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [2.0.20] - 2026-11-04
+
+### Fixed
+
+- **Notificaciones duplicadas: ya no se acumulan** — nuevo `NotificationsDedupSubscriber` (`src/modules/notifications/notifications-dedup.subscriber.ts`, registrado como subscriber de TypeORM en `DatabaseModule`): en cada creación de notificación se eliminan las anteriores con el mismo título y descripción (texto exacto byte a byte, comparación `BINARY` porque la colación de MySQL no distingue mayúsculas), conservando solo la más reciente (`id < :id`). Aplica a todas las vías de creación: `notifications.service`, `products.service`, `purchases.service`, `mercado-libre.service` y `product-sync.service`
+
 ## [2.0.19] - 2026-10-27
 
 ### Added
