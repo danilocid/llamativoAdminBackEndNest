@@ -16,7 +16,7 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test": "cross-env NODE_OPTIONS=--no-deprecation jest",
+    "test": "cross-env NODE_OPTIONS=--no-deprecation jest --runInBand",
     "test:watch": "cross-env NODE_OPTIONS=--no-deprecation jest --watch",
     "test:cov": "cross-env NODE_OPTIONS=--no-deprecation jest --coverage",
     "test:debug": "cross-env NODE_OPTIONS=--no-deprecation node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
