@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TimestampsSubscriber } from '../subscribers/timestamps.subscriber';
 import { NotificationsDedupSubscriber } from '../../modules/notifications/notifications-dedup.subscriber';
+import { NotificationsColorSubscriber } from '../../modules/notifications/notifications-color.subscriber';
 
 /**
  * Errores que reintentando no se arreglan: conviene fallar rápido y mostrar
@@ -69,7 +70,11 @@ const numero = (
           password: configService.get('DB_PASS'),
           database: configService.get('DB_NAME'),
           entities: ['dist/**/*.entity{.ts,.js}'],
-          subscribers: [TimestampsSubscriber, NotificationsDedupSubscriber],
+          subscribers: [
+            TimestampsSubscriber,
+            NotificationsDedupSubscriber,
+            NotificationsColorSubscriber,
+          ],
           migrations: ['dist/common/migrations/*{.ts,.js}'],
           migrationsRun: true,
           synchronize: configService.get('DB_SYNCHRONIZE') === 'true',

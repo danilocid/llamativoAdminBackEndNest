@@ -75,6 +75,7 @@ describe('NotificationsService', () => {
           createdAt: new Date('2026-01-01'),
           updatedAt: new Date('2026-02-01'),
           url: '/articulos',
+          color: 'warning',
         },
       ]);
 
@@ -89,6 +90,7 @@ describe('NotificationsService', () => {
           readed: false,
           createdAt: new Date('2026-01-01'),
           url: '/articulos',
+          color: 'warning',
         },
       ]);
       expect(result.data[0]).not.toHaveProperty('readedAt');

@@ -7,6 +7,12 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [2.0.21] - 2026-11-13
+
+### Added
+
+- **Color de criticidad en las notificaciones** — nueva columna `color` en `notifications` (migración `1794589425244-AddColorToNotifications`, idempotente) con 4 niveles: `success` (verde, no crítica), `warning` (amarillo, más crítica), `danger` (rojo, crítica) e `info` (celeste, exclusiva de las nuevas ventas de Mercado Libre). El valor lo asigna automáticamente `NotificationsColorSubscriber` (`beforeInsert`) en todas las vías de creación, respeta un `color` explícito (`POST /notifications` ahora lo acepta opcional, validado con `IsIn`), y `GET /notifications` lo incluye en la respuesta
+
 ## [2.0.20] - 2026-11-04
 
 ### Fixed

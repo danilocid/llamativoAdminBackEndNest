@@ -25,6 +25,7 @@ export class NotificationsService {
         readed: notification.readed,
         createdAt: notification.createdAt,
         url: notification.url,
+        color: notification.color,
       });
     });
     return {
