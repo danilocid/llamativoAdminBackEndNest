@@ -82,10 +82,11 @@ describe('ProductsService', () => {
   };
 
   // proyectarLlegadaBoleta() hace dos consultas con el mismo query builder:
-  // primero MAX(documento) y despues las fechas de las ultimas boletas. El
-  // mock distingue cual resolvio segun la columna que se selecciona
+  // Primero MAX(documento) y despues el agregado de boletas del ultimo año
+  // (MIN/MAX/COUNT de fecha). El mock distingue cual resolvio segun la
+  // columna que se selecciona en el primer select
   let ventasMaxDocumento: any[] = [{ lastDocument: 342 }];
-  let ventasFechas: any[] = [];
+  let ventasVentana: any[] = [];
 
   const mockSalesRepository: any = {
     createQueryBuilder: jest.fn(() => {
@@ -95,13 +96,16 @@ describe('ProductsService', () => {
         seleccion.push(expresion);
         return qb;
       });
+      qb.addSelect = jest.fn((expresion: string) => {
+        seleccion.push(expresion);
+        return qb;
+      });
       qb.where = jest.fn().mockReturnValue(qb);
-      qb.orderBy = jest.fn().mockReturnValue(qb);
-      qb.limit = jest.fn().mockReturnValue(qb);
+      qb.andWhere = jest.fn().mockReturnValue(qb);
       qb.getRawMany = jest.fn(async () =>
-        seleccion.some((expresion) => expresion.includes('MAX'))
+        seleccion.some((expresion) => expresion.includes('documento'))
           ? ventasMaxDocumento
-          : ventasFechas,
+          : ventasVentana,
       );
       return qb;
     }),
@@ -186,7 +190,7 @@ describe('ProductsService', () => {
 
     // Estado base de la proyeccion de boleta para cada prueba
     ventasMaxDocumento = [{ lastDocument: 342 }];
-    ventasFechas = [];
+    ventasVentana = [];
   });
 
   afterEach(() => {
@@ -632,11 +636,9 @@ describe('ProductsService', () => {
 
     it('calcula dias restantes como el promedio por las boletas faltantes', async () => {
       mockProductsRepository.find.mockResolvedValue([] as Products[]);
-      // Ultimas boletas emitidas: 10 dias de separacion entre cada una
-      ventasFechas = [
-        { fecha: '2026-01-21' },
-        { fecha: '2026-01-11' },
-        { fecha: '2026-01-01' },
+      // 3 boletas en el ultimo año: de la primera a la ultima pasan 20 dias
+      ventasVentana = [
+        { primera: '2026-01-01', ultima: '2026-01-21', total: 3 },
       ];
 
       const result = await service.getInventoryResume();
@@ -672,7 +674,7 @@ describe('ProductsService', () => {
 
     it('no estima fecha cuando no hay suficientes boletas para promediar', async () => {
       mockProductsRepository.find.mockResolvedValue([] as Products[]);
-      ventasFechas = [{ fecha: '2026-01-01' }];
+      ventasVentana = [{ primera: '2026-01-01', ultima: '2026-01-01', total: 1 }];
 
       const result = await service.getInventoryResume();
       const boleta = result.data.boleta;
@@ -686,7 +688,7 @@ describe('ProductsService', () => {
     it('no estima fecha cuando no se emitio ninguna boleta', async () => {
       mockProductsRepository.find.mockResolvedValue([] as Products[]);
       ventasMaxDocumento = [];
-      ventasFechas = [];
+      ventasVentana = [];
 
       const result = await service.getInventoryResume();
       const boleta = result.data.boleta;
@@ -696,28 +698,65 @@ describe('ProductsService', () => {
       expect(boleta.estimatedDate).toBeNull();
     });
 
-    it('filtra las boletas electronicas y limita la muestra a 100', async () => {
+    it('filtra las boletas electronicas del ultimo año con agregados SQL', async () => {
       mockProductsRepository.find.mockResolvedValue([] as Products[]);
 
       await service.getInventoryResume();
 
-      const [consultaMax, consultaFechas] = queryBuilders();
+      const [consultaMax, consultaVentana] = queryBuilders();
 
       // 39 es el id del tipo de documento de boleta electronica
       expect(consultaMax.where).toHaveBeenCalledWith(
         'sales.tipo_documento = :tipo',
         { tipo: 39 },
       );
-      expect(consultaFechas.where).toHaveBeenCalledWith(
+      expect(consultaVentana.where).toHaveBeenCalledWith(
         'sales.tipo_documento = :tipo',
         { tipo: 39 },
       );
-      expect(consultaFechas.limit).toHaveBeenCalledWith(100);
+      // La ventana es de 365 dias hacia atras
+      expect(consultaVentana.andWhere).toHaveBeenCalledTimes(1);
+      const [clause, params] = consultaVentana.andWhere.mock.calls[0];
+      expect(clause).toBe('sales.fecha >= :desde');
+      expect(
+        Math.abs(params.desde.getTime() - (Date.now() - 365 * 86400000)),
+      ).toBeLessThan(5000);
+      // Trae primera, ultima y total en una sola fila (sin LIMIT de muestra)
+      expect(consultaVentana.select).toHaveBeenCalledWith(
+        'MIN(sales.fecha)',
+        'primera',
+      );
+      expect(consultaVentana.addSelect).toHaveBeenCalledWith(
+        'MAX(sales.fecha)',
+        'ultima',
+      );
+      expect(consultaVentana.addSelect).toHaveBeenCalledWith(
+        'COUNT(*)',
+        'total',
+      );
+      expect(consultaVentana.limit).toBeUndefined();
       // La primera consulta trae el maximo, no las fechas
       expect(consultaMax.select).toHaveBeenCalledWith(
         'MAX(sales.documento)',
         'lastDocument',
       );
+    });
+
+    it('no estima fecha si las boletas emitidas quedan fuera del ultimo año', async () => {
+      mockProductsRepository.find.mockResolvedValue([] as Products[]);
+      // El historial tiene boletas (500 emitidas), pero dentro de la ventana
+      // de 365 dias no cayo ninguna
+      ventasMaxDocumento = [{ lastDocument: 500 }];
+      ventasVentana = [];
+
+      const result = await service.getInventoryResume();
+      const boleta = result.data.boleta;
+
+      expect(boleta.current).toBe(500);
+      expect(boleta.reached).toBe(false);
+      expect(boleta.avgDaysBetween).toBeNull();
+      expect(boleta.daysRemaining).toBeNull();
+      expect(boleta.estimatedDate).toBeNull();
     });
   });
 

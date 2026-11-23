@@ -7,6 +7,12 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [2.0.22] - 2026-11-23
+
+### Changed
+
+- **Proyección de llegada a la boleta 1000 por rango de fecha**: el ritmo de emisión ahora se promedia sobre las boletas electrónicas de los **últimos 365 días** (antes: las últimas 100 boletas sin límite de tiempo, que podían mezclar varios años de ritmos distintos). La ventana se calcula con agregados SQL (`MIN/MAX/COUNT` de `fecha`, sin traer todas las filas ni LIMIT de muestra) y si dentro del año hay menos de 2 boletas no se estima fecha (la tarjeta del dashboard muestra "Sin datos")
+
 ## [2.0.21] - 2026-11-13
 
 ### Added

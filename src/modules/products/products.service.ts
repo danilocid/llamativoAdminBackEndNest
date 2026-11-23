@@ -18,8 +18,8 @@ import { Sales } from '../sales/entities/sales.entity';
 const TIPO_BOLETA_ELECTRONICA = 39;
 // Numero de boleta hasta el que se proyecta la llegada
 const OBJETIVO_BOLETA = 1000;
-// Muestras de boletas usadas para promediar el ritmo de emision
-const MUESTRA_BOLETAS = 100;
+// Ventana (en dias) de las boletas usadas para promediar el ritmo de emision
+const VENTANA_BOLETAS_DIAS = 365;
 // Milisegundos de un dia, para pasar de intervalos a dias y de dias a fecha
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 
@@ -501,9 +501,10 @@ export class ProductsService {
   /**
    * Proyecta la fecha en la que se emitira la boleta 1000.
    *
-   * Toma las ultimas boletas electronicas emitidas, promedia los dias que
-   * pasan entre una y otra y multiplica ese ritmo por las boletas que faltan
-   * para el objetivo.
+   * Toma las boletas electronicas emitidas en el ultimo año (ventana fija
+   * de 365 dias), promedia los dias que pasan entre una y otra y multiplica
+   * ese ritmo por las boletas que faltan para el objetivo. Con menos de dos
+   * boletas en la ventana no hay intervalo que promediar y no estima fecha.
    */
   private async proyectarLlegadaBoleta() {
     const proyeccion = {
@@ -534,28 +535,32 @@ export class ProductsService {
       return proyeccion;
     }
 
-    // Ultimas boletas emitidas, de la mas reciente a la mas antigua
-    const boletas = await this.salesRepository
+    // Boletas emitidas en el ultimo año, agregadas en SQL: con la primera,
+    // la ultima y el total alcanza para promediar sin traer todas las filas
+    const desde = new Date(Date.now() - VENTANA_BOLETAS_DIAS * MS_POR_DIA);
+    const ventana = await this.salesRepository
       .createQueryBuilder('sales')
-      .select('sales.fecha', 'fecha')
+      .select('MIN(sales.fecha)', 'primera')
+      .addSelect('MAX(sales.fecha)', 'ultima')
+      .addSelect('COUNT(*)', 'total')
       .where('sales.tipo_documento = :tipo', { tipo: TIPO_BOLETA_ELECTRONICA })
-      .orderBy('sales.fecha', 'DESC')
-      .limit(MUESTRA_BOLETAS)
+      .andWhere('sales.fecha >= :desde', { desde })
       .getRawMany();
 
-    // Sin al menos dos boletas no hay intervalo que promediar
-    if (boletas.length < 2) {
+    const total = Number(ventana[0]?.total ?? 0);
+
+    // Sin al menos dos boletas en la ventana no hay intervalo que promediar
+    if (total < 2) {
       return proyeccion;
     }
 
-    const marcas = boletas
-      .map((fila) => new Date(fila.fecha).getTime())
-      .sort((a, b) => a - b);
-
     // El promedio de los intervalos consecutivos equivale al tramo total
     // dividido en la cantidad de saltos: (ultima - primera) / (n - 1)
-    const tramoDias = (marcas[marcas.length - 1] - marcas[0]) / MS_POR_DIA;
-    proyeccion.avgDaysBetween = tramoDias / (marcas.length - 1);
+    const tramoDias =
+      (new Date(ventana[0].ultima).getTime() -
+        new Date(ventana[0].primera).getTime()) /
+      MS_POR_DIA;
+    proyeccion.avgDaysBetween = tramoDias / (total - 1);
     proyeccion.daysRemaining =
       proyeccion.avgDaysBetween * proyeccion.remaining;
     proyeccion.estimatedDate = new Date(
