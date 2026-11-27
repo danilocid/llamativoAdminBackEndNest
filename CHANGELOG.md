@@ -7,6 +7,20 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [2.0.23] - 2026-11-26
+
+### Changed
+
+- **Gestor de paquetes: pnpm** — se elimina `package-lock.json`; `pnpm-lock.yaml` es el único lockfile. `package.json` declara `packageManager: pnpm@11.1.3` y `engines.node >= 22.13.0` (requisito de pnpm 11)
+- **Dockerfile**: imagen base `node:20-slim` → `node:24-slim` (LTS); instala pnpm 11.1.3 y construye con `pnpm install --frozen-lockfile` + `pnpm run build`
+- Dependencias actualizadas dentro de su rango semver: `@nestjs/common|core|platform-express|testing` 11.2.12, `@nestjs/swagger` 11.4.8, `axios` 1.21.1, `mysql2` 3.24.6, `eslint` 10.15.0, `@typescript-eslint/*` 8.74.0, `prettier` 3.10.1, `ts-jest` 29.4.15, `supertest` 7.3.2 y tipos
+- README: comandos con pnpm y requisito de Node >= 22.13
+
+### Fixed
+
+- Vulnerabilidades en dependencias de producción: de 30 (2 críticas, 9 altas) a 3 moderadas (`uuid` vía `@google-cloud/logging`, que requiere su versión mayor 12; `glob`/`minimatch`). Corregidas, entre otras: `protobufjs`, `proxy-addr`, `multer`, `body-parser`, `axios`, `follow-redirects`, `form-data`, `@grpc/grpc-js`
+- `@jest/globals` declarado como devDependency: los tests lo importaban sin declararlo y con pnpm no se resuelve
+
 ## [2.0.22] - 2026-11-23
 
 ### Changed

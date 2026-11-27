@@ -63,8 +63,8 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 
 ## Requisitos Previos
 
-- Node.js >= 20.0.0
-- npm >= 9.0.0
+- Node.js >= 22.13.0 (el Dockerfile usa Node 24)
+- pnpm 11 (gestor de paquetes del proyecto; no usar npm)
 - MySQL 8.x
 - Cuenta de Google Cloud Platform (para logging)
 
@@ -72,7 +72,7 @@ Backend de administración para Llamativo, desarrollado con NestJS 11. API REST 
 
 ```bash
 # Instalar dependencias
-npm install
+pnpm install
 ```
 
 ## Configuración
@@ -125,13 +125,13 @@ ML_REDIRECT_URI=tu_redirect_uri
 
 ```bash
 # Desarrollo con watch mode
-npm run start:dev
+pnpm run start:dev
 
 # Producción
-npm run start:prod
+pnpm run start:prod
 
 # Debug mode
-npm run start:debug
+pnpm run start:debug
 ```
 
 La API estará disponible en `http://localhost:3000`
@@ -140,16 +140,16 @@ La API estará disponible en `http://localhost:3000`
 
 ```bash
 # Ejecutar todos los tests
-npm test
+pnpm test
 
 # Tests en modo watch
-npm run test:watch
+pnpm run test:watch
 
 # Coverage de tests
-npm run test:cov
+pnpm run test:cov
 
 # Tests end-to-end
-npm run test:e2e
+pnpm run test:e2e
 ```
 
 **Cobertura Actual:**
@@ -321,7 +321,7 @@ Ver [CHANGELOG.md](CHANGELOG.md) para historial detallado de cambios.
 
 Para contribuir al proyecto:
 
-1. Asegúrate de que el código pase todas las pruebas (`npm test`)
+1. Asegúrate de que el código pase todas las pruebas (`pnpm test`)
 2. Sigue las convenciones de código de NestJS
 3. Documenta los cambios en CHANGELOG.md
 4. Actualiza el README si agregas nuevas funcionalidades
